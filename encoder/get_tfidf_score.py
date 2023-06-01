@@ -112,8 +112,8 @@ def question_to_para(paras, qa_pair):
 
 
 if __name__ == "__main__":    
-    paths = ['/data/wushiwei/data/assistq/assistq_test', '/data/wushiwei/data/assistq/assistq_train']
-    names = ['test_without_gt', 'train']
+    paths = ['/data/zclfe/cvpr_comp/data/assistq_test', '/data/zclfe/cvpr_comp/data/assistq_train']
+    names = ['test_with_gt', 'train']
 
     for path, name in zip(paths, names):
         with open(os.path.join(path, name+'.json'), 'r') as f:

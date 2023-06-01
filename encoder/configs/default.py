@@ -18,6 +18,16 @@ def parse_args():
         default=None,
         nargs=argparse.REMAINDER,
     )
+    parser.add_argument(
+        "--wdb_project",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        "--wdb_name",
+        type=str,
+        default=None
+    )
     if len(sys.argv) == 1:
         parser.print_help()
     return parser.parse_args()
@@ -33,7 +43,7 @@ def load_config(args):
         cfg.merge_from_list(args.opts)
 
     cfg.OUTPUT_DIR = args.cfg_file.replace("configs", "outputs").strip('.yaml')
-    return cfg
+    return cfg, args
 
 def build_config():
     cfg = load_config(parse_args())

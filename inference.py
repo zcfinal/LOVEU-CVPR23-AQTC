@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 if __name__ == "__main__":
     seed_everything(0, workers=True)
-    cfg = build_config()
+    cfg, args = build_config()
     dataset = build_data(cfg)
     model = build_model(cfg)
     trainer = Trainer(

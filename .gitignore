@@ -9,3 +9,5 @@ outputs/
 *extract/
 lightning_logs/
 .vscode/
+wandb
+sh
