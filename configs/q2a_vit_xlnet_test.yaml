@@ -3,7 +3,7 @@ DATASET:
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: ''
-  TYPE: EncodedAssistMachineNameQA # EncodedAssistMachineNameQA; EncodedAssistQA
+  TYPE: EncodedAssistQA # EncodedAssistMachineNameQA; EncodedAssistQA
 DATALOADER:
   NUM_WORKERS: 4
 INPUT:
@@ -15,7 +15,7 @@ INPUT:
   DIM: 768
   NUM_MASKS: 1
 MODEL:
-  ARCH: 'q2a_function_machine_name'
+  ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1
   HISTORY: 

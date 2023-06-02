@@ -12,6 +12,10 @@ class MLP(nn.Module):
         self.fc2 = nn.Linear(in_features, out_features)
         self.in_features = in_features
         self.out_features = out_features
+        nn.init.kaiming_normal_(self.fc1.weight)
+        nn.init.kaiming_normal_(self.fc2.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
     
     def forward(self, x):
         x = self.fc1(x)
@@ -129,12 +133,38 @@ class Q2A(nn.Module):
         else:
             return results
 
+class Attention(nn.Module):
+    ''' AttentionPooling used to weighted aggregate news vectors
+    Arg: 
+        d_h: the last dimension of input
+    '''
+    def __init__(self):
+        super(Attention, self).__init__()
+
+    def forward(self, key, x, attn_mask=None):
+        bz = x.shape[0]
+        alpha = torch.bmm(key.unsqueeze(1),x.permute(0,2,1))
+        alpha = alpha - torch.max(alpha)
+        alpha = torch.exp(alpha)
+        if attn_mask is not None:
+            alpha = alpha * attn_mask.unsqueeze(2)
+        alpha = alpha / (torch.sum(alpha, dim=2, keepdim=True) + 1e-8)
+
+        x = torch.bmm(alpha, x)
+        x = torch.reshape(x, (bz, -1))  # (bz, 400)
+        return x
+
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
-        self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
+        self.mlp_pre = nn.Sequential(nn.LayerNorm(normalized_shape=cfg.INPUT.DIM*7),
+                                     MLP(cfg.INPUT.DIM*7, cfg.INPUT.DIM*3),
+                                    nn.ReLU(),
+                                    nn.LayerNorm(normalized_shape=cfg.INPUT.DIM*3),
+                                    MLP(cfg.INPUT.DIM*3, cfg.MODEL.DIM_STATE))
+        self.att = Attention()
         
         self.state = torch.randn(cfg.MODEL.DIM_STATE, device="cuda")
         if cfg.MODEL.HISTORY.ARCH == "mlp":
@@ -162,31 +192,39 @@ class Q2A_Function(nn.Module):
             actions=rslt['actions']
             label=rslt['label']
             meta=rslt['meta']
-            # for text
+            question = self.mlp_t(question)
             if self.function_centric:
+                para = self.mlp_t(para)
                 score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
                 timestamps = meta['paras_timestamp']
-                para = self.mlp_t(para)
-                para = torch.matmul(score, para)
             else:
+                script = self.mlp_t(script)
                 score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
                 timestamps = meta['sents_timestamp']
-                script = self.mlp_t(script)
-                script = torch.matmul(score, script)
-            text_seg = para if self.function_centric else script
 
             # for visual
             video = self.mlp_v(video)
             video_seg = []
-            for seg in timestamps:
+            for i, seg in enumerate(timestamps):
                 if seg[0] >= seg[1]:
                     video_seg.append(video[seg[0]])
                 else:
-                    video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+                    #video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+                    video_vec = self.att(para[i].unsqueeze(0),video[seg[0]:seg[1]].unsqueeze(0)).squeeze(0)
+                    video_seg.append(video_vec)
+
             video_seg = torch.stack(video_seg)
+            video_learn = self.att(question,video_seg.unsqueeze(0)).squeeze(0)
             video_seg = torch.matmul(score, video_seg)
-                
-            question = self.mlp_t(question)
+
+            if self.function_centric:
+                para_learn = self.att(question,para.unsqueeze(0)).squeeze(0)
+                para = torch.matmul(score, para)
+            else:
+                script_learn = self.att(question,script.unsqueeze(0)).squeeze(0)
+                script = torch.matmul(score, script)
+            text_seg = para if self.function_centric else script
+            text_learn = para_learn if self.function_centric else script_learn
             
             state = self.state
             scores = []
@@ -197,13 +235,12 @@ class Q2A_Function(nn.Module):
                 a_buttons = self.mlp_v(
                     torch.stack(a_buttons).view(A, -1, a_texts.shape[1])
                 ).view(A, -1) 
-                qa = question + a_texts
-
+                #qa = question + a_texts
+                
                 inputs = torch.cat(
-                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
+                    [video_seg.expand_as(a_texts),video_learn.expand_as(a_texts), text_seg.expand_as(a_texts),text_learn.expand_as(a_texts), a_texts, a_buttons.view(A, -1), question.expand_as(a_texts)],
                     dim=1
                 )
-
                 inputs = self.mlp_pre(inputs)
                 if hasattr(self, "gru"):
                     states = self.gru(inputs, state.expand_as(inputs))
