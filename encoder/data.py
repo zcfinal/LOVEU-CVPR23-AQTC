@@ -46,6 +46,7 @@ class RawAssistQA(Dataset):
         self.for_script = cfg.FOR.SCRIPT
         self.for_qa = cfg.FOR.QA
         self.for_para = cfg.FOR.PARA
+        self.for_machine_name = cfg.FOR.MACHINE_NAME
         self.num_masks = cfg.QA.NUM_MASKS
 
     def get_video(self, sample_path:str, fps:int):
@@ -210,6 +211,11 @@ class RawAssistQA(Dataset):
                         answers_per_step[j] = self.tokenizer(f'Answer: {answer}', return_tensors="pt")
                     qa['answer_bidxs'].append(answer_bidxs_per_step)
             return qas, output_path, f'qa_maskx{self.num_masks}'
+        
+        if self.for_machine_name:
+            machine_name = folder.split('_')[0]
+            machine_name = self.tokenizer(f'This machine is a {machine_name}.', return_tensors="pt")
+            return machine_name, output_path
 
         return None
 

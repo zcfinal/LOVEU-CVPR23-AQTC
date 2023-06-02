@@ -13,6 +13,7 @@ FOR:
   SCRIPT: False
   QA: False
   PARA: False
+  MACHINE_NAME: False
 QA:
   NUM_MASKS: -1 # best performance
 SUFFIX: ''

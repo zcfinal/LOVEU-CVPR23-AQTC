@@ -31,7 +31,15 @@ class EncodedAssistQA(Dataset):
             label = torch.tensor(sample['correct']) - 1 # NOTE here, start from 1
         else:
             label = None
-        return video, script, question, function_para, actions, label, meta
+        rslt = {}
+        rslt['video']=video
+        rslt['script']=script
+        rslt['question']=question
+        rslt['function_para']=function_para
+        rslt['actions']=actions
+        rslt['label']=label
+        rslt['meta']=meta
+        return rslt
         
     def __len__(self, ):
         return len(self.samples)
@@ -39,6 +47,44 @@ class EncodedAssistQA(Dataset):
     @staticmethod
     def collate_fn(samples):
         return samples
+
+
+class EncodedAssistMachineNameQA(EncodedAssistQA):
+        
+    def __getitem__(self, index):
+        sample = self.samples[index]
+        video = torch.load(sample["video"], map_location="cpu")
+
+        timestamp_script = torch.load(sample["script"], map_location="cpu")
+        sents_timestamp, script = timestamp_script
+
+        timestamp_para = torch.load(sample['para'], map_location="cpu")
+        paras_timestamp, function_para = timestamp_para
+
+        machine_name = torch.load(sample['machine_name'], map_location="cpu")
+
+        question = sample["question"]
+        actions = sample["answers"]
+        meta = {
+            'question': sample['src_question'], 'folder': sample['folder'], 
+            'paras_score': sample['paras_score'], 'paras_timestamp': paras_timestamp, 
+            'sents_score': sample['sents_score'], 'sents_timestamp': sents_timestamp
+        }
+        if 'correct' in sample:
+            label = torch.tensor(sample['correct']) - 1 # NOTE here, start from 1
+        else:
+            label = None
+        rslt = {}
+        rslt['video']=video
+        rslt['script']=script
+        rslt['question']=question
+        rslt['function_para']=function_para
+        rslt['actions']=actions
+        rslt['label']=label
+        rslt['meta']=meta
+        rslt['machine_name']=machine_name
+        return rslt
+        
 
 class EncodedAssistQADataModule(LightningDataModule):
     def __init__(self, cfg):
@@ -53,6 +99,8 @@ class EncodedAssistQADataModule(LightningDataModule):
                 s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
                 s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
                 s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
+                if 'MachineName' in cfg.DATASET.TYPE:
+                    s["machine_name"] = os.path.join(root, t, cfg.INPUT.MACHINE_NAME)
             random.shuffle(sample)
             split_num = int(len(sample)*self.cfg.DATASET.SPLIT_RATIO)
             train_samples.extend(sample[:split_num])
@@ -63,13 +111,13 @@ class EncodedAssistQADataModule(LightningDataModule):
     
     def train_dataloader(self): 
         cfg = self.cfg
-        trainset = EncodedAssistQA(self.train_samples)
+        trainset = eval(cfg.DATASET.TYPE)(self.train_samples)
         return DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
             shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
 
     def val_dataloader(self):
         cfg = self.cfg
-        valset = EncodedAssistQA(self.valid_samples)
+        valset = eval(cfg.DATASET.TYPE)(self.valid_samples)
         return DataLoader(valset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
             shuffle=False, drop_last=False, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
 
@@ -91,17 +139,6 @@ class EncodedAssistQATestDataModule(EncodedAssistQADataModule):
         self.valid_samples = valid_samples
 
     
-    def train_dataloader(self): 
-        cfg = self.cfg
-        trainset = EncodedAssistQA(self.train_samples)
-        return DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
-            shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
-
-    def val_dataloader(self):
-        cfg = self.cfg
-        valset = EncodedAssistQA(self.valid_samples)
-        return DataLoader(valset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
-            shuffle=False, drop_last=False, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
     
 def build_data(cfg):
     if cfg.DATASET.GT:

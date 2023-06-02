@@ -129,7 +129,6 @@ class Q2A(nn.Module):
         else:
             return results
 
-
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -155,7 +154,14 @@ class Q2A_Function(nn.Module):
     def forward(self, batch):
         loss, count = 0, 0
         results = []
-        for video, script, question, para, actions, label, meta in batch:
+        for rslt in batch:
+            video=rslt['video']
+            script=rslt['script']
+            question=rslt['question']
+            para=rslt['function_para']
+            actions=rslt['actions']
+            label=rslt['label']
+            meta=rslt['meta']
             # for text
             if self.function_centric:
                 score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
@@ -226,8 +232,97 @@ class Q2A_Function(nn.Module):
         else:
             return results
 
+class Q2A_Function_MachineName(Q2A_Function):
+    def __init__(self, cfg) -> None:
+        super().__init__(cfg)
+        self.mlp_pre = MLP(cfg.INPUT.DIM*5, cfg.MODEL.DIM_STATE)
 
-models = {"q2a": Q2A, "q2a_function": Q2A_Function}
+    def forward(self, batch):
+        loss, count = 0, 0
+        results = []
+        for rslt in batch:
+            video=rslt['video']
+            script=rslt['script']
+            question=rslt['question']
+            para=rslt['function_para']
+            actions=rslt['actions']
+            label=rslt['label']
+            meta=rslt['meta']
+            machine_name=rslt['machine_name']
+            # for text
+            if self.function_centric:
+                score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
+                timestamps = meta['paras_timestamp']
+                para = self.mlp_t(para)
+                para = torch.matmul(score, para)
+            else:
+                score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
+                timestamps = meta['sents_timestamp']
+                script = self.mlp_t(script)
+                script = torch.matmul(score, script)
+            text_seg = para if self.function_centric else script
+
+            # for visual
+            video = self.mlp_v(video)
+            video_seg = []
+            for seg in timestamps:
+                if seg[0] >= seg[1]:
+                    video_seg.append(video[seg[0]])
+                else:
+                    video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+            video_seg = torch.stack(video_seg)
+            video_seg = torch.matmul(score, video_seg)
+                
+            question = self.mlp_t(question)
+
+            machine_name = self.mlp_t(machine_name)
+            
+            state = self.state
+            scores = []
+            for i, actions_per_step in enumerate(actions):
+                a_texts, a_buttons = zip(*[(action['text'], action['button']) for action in actions_per_step])
+                a_texts = self.mlp_t(torch.cat(a_texts))
+                A = len(a_buttons)
+                a_buttons = self.mlp_v(
+                    torch.stack(a_buttons).view(A, -1, a_texts.shape[1])
+                ).view(A, -1) 
+                qa = question + a_texts
+
+                inputs = torch.cat(
+                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1), machine_name.expand_as(qa)],
+                    dim=1
+                )
+
+                inputs = self.mlp_pre(inputs)
+                if hasattr(self, "gru"):
+                    states = self.gru(inputs, state.expand_as(inputs))
+                else:
+                    states = torch.cat([inputs, state.expand_as(inputs)], dim=1)
+                logits = self.proj(states)
+                if self.training:
+                    loss += F.cross_entropy(logits.view(1, -1), label[i].view(-1))
+                    count += 1
+                else:
+                    scores.append(logits.view(-1).tolist())
+                if self.history_train == "gt" and self.training:
+                    state = inputs[label[i]]
+                if (self.history_train == "max" and self.training) \
+                    or (self.history_val == "max" and not self.training):
+                    state = inputs[logits.argmax()]
+            if not self.training:
+                meta["scores"] = scores
+                result = {}
+                result['meta'] = meta
+                if self.cfg.DATASET.GT:
+                    result['label'] = label
+                results.append(result)
+        if self.training:
+            return loss / count
+        else:
+            return results
+
+
+models = {"q2a": Q2A, "q2a_function": Q2A_Function, "q2a_function_machine_name":Q2A_Function_MachineName}
 
 class ModelModule(LightningModule):
     def __init__(self, cfg):

@@ -3,6 +3,7 @@ DATASET:
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: ''
+  TYPE: EncodedAssistMachineNameQA # EncodedAssistMachineNameQA; EncodedAssistQA
 DATALOADER:
   NUM_WORKERS: 4
 INPUT:
@@ -10,10 +11,11 @@ INPUT:
   VIDEO: 'video.pth'
   SCRIPT: 'script.pth'
   PARA: 'paras.pth'
+  MACHINE_NAME: 'machine_name.pth'
   DIM: 768
   NUM_MASKS: 1
 MODEL:
-  ARCH: 'q2a_function'
+  ARCH: 'q2a_function_machine_name'
   DIM_STATE: 768
   NUM_HEADS: 1
   HISTORY: 

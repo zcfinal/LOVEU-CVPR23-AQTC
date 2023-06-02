@@ -15,6 +15,7 @@ class Encoder(LightningModule):
         self.for_script = cfg.FOR.SCRIPT
         self.for_qa = cfg.FOR.QA
         self.for_para = cfg.FOR.PARA
+        self.for_machine_name = cfg.FOR.MACHINE_NAME
         self.suffix = cfg.SUFFIX if cfg.SUFFIX else ''
 
     def test_step(self, batch, idx):
@@ -70,6 +71,14 @@ class Encoder(LightningModule):
                         answer_feature = dict(text=text_feature, button=button_feature)
                         qa['answers'][i][j] = answer_feature
             torch.save(qas, os.path.join(path, f'{tag}{self.suffix}.pth'))
+        
+        if self.for_machine_name:
+            machine_name, path = batch[0]
+            if not os.path.exists(path):
+                os.makedirs(path)
+            machine_name = self.text_model(**machine_name).last_hidden_state[:,-1,:]
+            torch.save(machine_name,os.path.join(path,'machine_name.pth'))
+
 
 def build_model(cfg):
     return Encoder(cfg)
