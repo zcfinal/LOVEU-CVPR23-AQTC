@@ -15,3 +15,4 @@ FOR:
   PARA: False
 QA:
   NUM_MASKS: -1 # best performance
+SUFFIX: ''

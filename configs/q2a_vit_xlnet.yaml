@@ -1,5 +1,6 @@
 DATASET: 
-  TRAIN: 'encoder/outputs/vit_xlnet/train'
+  TRAIN: 'encoder/outputs/vit_xlnet/video'
+  SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: '/data/wushiwei/data/assistq/assistq_test/test_with_gt.json'
 DATALOADER:

@@ -15,6 +15,7 @@ class Encoder(LightningModule):
         self.for_script = cfg.FOR.SCRIPT
         self.for_qa = cfg.FOR.QA
         self.for_para = cfg.FOR.PARA
+        self.suffix = cfg.SUFFIX if cfg.SUFFIX else ''
 
     def test_step(self, batch, idx):
         if batch[0] is None:
@@ -68,7 +69,7 @@ class Encoder(LightningModule):
                         text_feature = self.text_model(**answer).last_hidden_state[:,-1,:]
                         answer_feature = dict(text=text_feature, button=button_feature)
                         qa['answers'][i][j] = answer_feature
-            torch.save(qas, os.path.join(path, f'{tag}.pth'))
+            torch.save(qas, os.path.join(path, f'{tag}{self.suffix}.pth'))
 
 def build_model(cfg):
     return Encoder(cfg)

@@ -112,15 +112,15 @@ def question_to_para(paras, qa_pair):
 
 
 if __name__ == "__main__":    
-    paths = ['/data/zclfe/cvpr_comp/data/assistq_test', '/data/zclfe/cvpr_comp/data/assistq_train']
-    names = ['test_with_gt', 'train']
+    paths = ['/data/zclfe/cvpr_comp/data/']
+    names = ['test2023_without_gt']
 
     for path, name in zip(paths, names):
         with open(os.path.join(path, name+'.json'), 'r') as f:
             ann = json.load(f)
         ann_with_score = deepcopy(ann)
-        data_path = os.path.join(path, path.split('_')[-1])
-        
+        data_path = os.path.join(path, 'video')
+
         for sample in ann:
             sentences = get_sentences(sample, data_path)
             paras, paras_timestamps = get_paras(sample, data_path)
