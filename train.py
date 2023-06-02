@@ -22,11 +22,11 @@ if __name__ == "__main__":
     early_stop_callback = EarlyStopping(
         monitor="EncodedAssistQADataModule recall@1",  # 监控的指标名称
         min_delta=0.001,     # 最小变化量，用于确定是否发生改进
-        patience=10,          # 在没有改进时等待的轮数
+        patience=20,          # 在没有改进时等待的轮数
         verbose=True,        # 是否打印提示信息
         mode='max'           # 监控模式，可以是 'min' 或 'max'
         )
-    logger = WandbLogger(project=args.wdb_project,name=args.wdb_name,log_model=True,save_dir='outputs/')
+    logger = WandbLogger(project=args.wdb_project,name=args.wdb_name,log_model=not args.wdb_offline,save_dir='outputs/',offline=args.wdb_offline)
     trainer = Trainer(
         gpus=cfg.NUM_GPUS, 
         accelerator="gpu",

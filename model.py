@@ -12,10 +12,18 @@ class MLP(nn.Module):
         self.fc2 = nn.Linear(in_features, out_features)
         self.in_features = in_features
         self.out_features = out_features
+        self.l1=nn.LayerNorm(normalized_shape=in_features)
+        self.l2=nn.LayerNorm(normalized_shape=in_features)
+        nn.init.kaiming_normal_(self.fc1.weight)
+        nn.init.kaiming_normal_(self.fc2.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
     
     def forward(self, x):
+        x = self.l1(x)
         x = self.fc1(x)
         x = self.act(x)
+        x = self.l2(x)
         x = self.fc2(x)
         return x
 
