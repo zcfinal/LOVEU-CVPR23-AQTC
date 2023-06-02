@@ -72,6 +72,39 @@ class EncodedAssistQADataModule(LightningDataModule):
         valset = EncodedAssistQA(self.valid_samples)
         return DataLoader(valset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
             shuffle=False, drop_last=False, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
+
+class EncodedAssistQATestDataModule(EncodedAssistQADataModule):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.cfg = cfg
+        root = self.cfg.DATASET.TRAIN
+        train_samples = []
+        valid_samples = []
+        for t in os.listdir(root):
+            sample = torch.load(os.path.join(root, t, cfg.INPUT.QA), map_location="cpu")
+            for s in sample:
+                s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
+                s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
+                s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
+            valid_samples.extend(sample)
+        self.train_samples = train_samples
+        self.valid_samples = valid_samples
+
+    
+    def train_dataloader(self): 
+        cfg = self.cfg
+        trainset = EncodedAssistQA(self.train_samples)
+        return DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
+            shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
+
+    def val_dataloader(self):
+        cfg = self.cfg
+        valset = EncodedAssistQA(self.valid_samples)
+        return DataLoader(valset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
+            shuffle=False, drop_last=False, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
     
 def build_data(cfg):
-    return EncodedAssistQADataModule(cfg)
+    if cfg.DATASET.GT:
+        return EncodedAssistQADataModule(cfg)
+    else:
+        return EncodedAssistQATestDataModule(cfg)

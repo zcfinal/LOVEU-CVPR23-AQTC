@@ -43,6 +43,7 @@ def load_config(args):
         cfg.merge_from_list(args.opts)
 
     cfg.OUTPUT_DIR = args.cfg_file.replace("configs", "outputs").strip('.yaml')
+    cfg.SAVEPATH = f'/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/outputs/cvpr_loveu2023/{args.wdb_name}/'
     return cfg, args
 
 def build_config():

@@ -216,7 +216,11 @@ class Q2A_Function(nn.Module):
                     state = inputs[logits.argmax()]
             if not self.training:
                 meta["scores"] = scores
-                results.append(meta)
+                result = {}
+                result['meta'] = meta
+                if self.cfg.DATASET.GT:
+                    result['label'] = label
+                results.append(result)
         if self.training:
             return loss / count
         else:
@@ -248,23 +252,25 @@ class ModelModule(LightningModule):
         batched_results = self.model(batch)
         return batched_results
         
-    def validation_epoch_end(self, outputs) -> None:
+    def validation_epoch_end(self, results) -> None:
         from eval_for_loveu_cvpr2022 import evaluate
-        results = sum(outputs, [])
+        results = sum(results,[])
         all_preds = {}
+        all_annos = {}
         for result in results:
             pred = dict(
-                question=result['question'], 
-                scores=result['scores']
+                question=result['meta']['question'], 
+                scores=result['meta']['scores']
             )
-            folder = result['folder']
+            folder = result['meta']['folder']
             if folder not in all_preds:
                 all_preds[folder] = []
+                all_annos[folder] = []
             all_preds[folder].append(pred)
+            if self.cfg.DATASET.GT:
+                all_annos[folder].append(result['label'])
 
         if self.cfg.DATASET.GT:
-            with open(self.cfg.DATASET.GT) as f:
-                all_annos = json.load(f)
             r1, r3, mr, mrr = evaluate(all_preds, all_annos)
             dataset = self.trainer.datamodule.__class__.__name__
             # for tensorboard
@@ -279,9 +285,9 @@ class ModelModule(LightningModule):
             print(f"{dataset} mrr", mrr) 
         else:
             json_name = f"submit_test_{self.current_epoch}e.json"
-            json_file = os.path.join(self.logger.log_dir, json_name)
-            if not os.path.exists(self.logger.log_dir):
-                os.makedirs(self.logger.log_dir)
+            json_file = os.path.join(self.cfg.SAVEPATH, json_name)
+            if not os.path.exists(self.cfg.SAVEPATH):
+                os.makedirs(self.cfg.SAVEPATH)
             print("\n No ground-truth labels for validation \n")
             print(f"Generating json file at {json_file}. You can zip and submit it to CodaLab ;)")
             with open(json_file, 'w') as f:

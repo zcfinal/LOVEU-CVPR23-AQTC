@@ -21,18 +21,10 @@ def evaluate(all_preds, all_annos):
     for key in all_annos:
         annos = all_annos[key]
         preds = all_preds[key]
-        for anno in annos:
-            # find the corresponding question in preds
-            is_matched = False
-            for pred in preds:
-                if pred['question'] == anno['question']:
-                    # calculate
-                    is_matched = True
-                    for scores_per_step, label_per_step in zip(pred['scores'], anno['correct']):
-                        all_scores.append(np.array(scores_per_step))
-                        all_labels.append(np.array(label_per_step - 1)) # label starts from 0
-                    break
-        assert is_matched, f"Please check your submission file. We cant find predictions for the question: {anno['question']} (data folder: {key})."
+        for pred,anno in zip(preds,annos):
+            for scores_per_step, label_per_step in zip(pred['scores'], anno):
+                all_scores.append(np.array(scores_per_step))
+                all_labels.append(np.array(label_per_step.item())) # label starts from 0
 
     recall_1, recall_3, mean_rank, mean_reciprocal_rank = evaluate_for_scores(all_scores, all_labels)
     return recall_1, recall_3, mean_rank, mean_reciprocal_rank
