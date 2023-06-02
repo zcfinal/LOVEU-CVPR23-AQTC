@@ -143,6 +143,8 @@ class Q2A_Function(nn.Module):
         super().__init__()
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
+        self.mlp_button = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
+        self.mlp_a = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
         
         self.state = torch.randn(cfg.MODEL.DIM_STATE, device="cuda")
@@ -194,9 +196,9 @@ class Q2A_Function(nn.Module):
             scores = []
             for i, actions_per_step in enumerate(actions):
                 a_texts, a_buttons = zip(*[(action['text'], action['button']) for action in actions_per_step])
-                a_texts = self.mlp_t(torch.cat(a_texts))
+                a_texts = self.mlp_a(torch.cat(a_texts))
                 A = len(a_buttons)
-                a_buttons = self.mlp_v(
+                a_buttons = self.mlp_button(
                     torch.stack(a_buttons).view(A, -1, a_texts.shape[1])
                 ).view(A, -1) 
                 qa = question + a_texts
