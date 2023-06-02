@@ -284,7 +284,7 @@ class ModelModule(LightningModule):
             print(f"{dataset} mean_rank", mr)
             print(f"{dataset} mrr", mrr) 
         else:
-            json_name = f"submit_test_{self.current_epoch}e.json"
+            json_name = f"submit_test.json"
             json_file = os.path.join(self.cfg.SAVEPATH, json_name)
             if not os.path.exists(self.cfg.SAVEPATH):
                 os.makedirs(self.cfg.SAVEPATH)
