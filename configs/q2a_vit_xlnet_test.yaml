@@ -16,6 +16,7 @@ MODEL:
   ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1
+  AGGREGATE: 'att' 
   HISTORY: 
     TRAIN: 'gt'
     VAL: 'max'

@@ -129,6 +129,37 @@ class Q2A(nn.Module):
         else:
             return results
 
+class AdditiveAttention(nn.Module):
+    ''' AttentionPooling used to weighted aggregate news vectors
+    Arg: 
+        d_h: the last dimension of input
+    '''
+    def __init__(self, d_h, hidden_size=200):
+        super(AdditiveAttention, self).__init__()
+        self.att_fc1 = nn.Linear(d_h, hidden_size)
+        self.att_fc2 = nn.Linear(hidden_size, 1)
+
+    def forward(self, x, attn_mask=None):
+        """
+        Args:
+            x: batch_size, candidate_size, candidate_vector_dim
+            attn_mask: batch_size, candidate_size
+        Returns:
+            (shape) batch_size, candidate_vector_dim
+        """
+        bz = x.shape[0]
+        e = self.att_fc1(x)
+        e = nn.Tanh()(e)
+        alpha = self.att_fc2(e)
+
+        alpha = torch.exp(alpha)
+        if attn_mask is not None:
+            alpha = alpha * attn_mask.unsqueeze(2)
+        alpha = alpha / (torch.sum(alpha, dim=1, keepdim=True) + 1e-8)
+
+        x = torch.bmm(x.permute(0, 2, 1), alpha)
+        x = torch.reshape(x, (bz, -1))  # (bz, 400)
+        return x
 
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
@@ -136,6 +167,8 @@ class Q2A_Function(nn.Module):
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
+
+        self.video_aggregation = AdditiveAttention(cfg.INPUT.DIM)
         
         self.state = torch.randn(cfg.MODEL.DIM_STATE, device="cuda")
         if cfg.MODEL.HISTORY.ARCH == "mlp":
@@ -176,7 +209,12 @@ class Q2A_Function(nn.Module):
                 if seg[0] >= seg[1]:
                     video_seg.append(video[seg[0]])
                 else:
-                    video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+                    if self.cfg.MODEL.AGGREGATE=='mean':
+                        video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+                    elif self.cfg.MODEL.AGGREGATE=='att':
+                        video_list = video[seg[0]:seg[1]].unsqueeze(0)
+                        video_vec = self.video_aggregation(video_list).squeeze(0)
+                        video_seg.append(video_vec)
             video_seg = torch.stack(video_seg)
             video_seg = torch.matmul(score, video_seg)
                 
