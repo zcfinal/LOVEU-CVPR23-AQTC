@@ -227,7 +227,7 @@ class Q2A_Function(nn.Module):
                     count += 1
                 elif p:
                     prob,psedo_label = torch.max(F.softmax(logits.detach(),0),0)
-                    mask = prob.ge(0.7).float().view(-1)
+                    mask = prob.ge(0.9).float().view(-1)
                     loss += F.cross_entropy(logits.view(1, -1), psedo_label.view(-1))*mask
                     count += 1
                 else:
