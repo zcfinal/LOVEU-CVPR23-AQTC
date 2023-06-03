@@ -60,12 +60,22 @@ class EncodedAssistQADataModule(LightningDataModule):
             valid_samples.extend(sample[split_num:])
         self.train_samples = train_samples
         self.valid_samples = valid_samples
+        pseudo_samples = copy.deepcopy(self.valid_samples)
+        for t in os.listdir(root):
+            sample = torch.load(os.path.join(root, t, cfg.INPUT.QATEST), map_location="cpu")
+            for s in sample:
+                s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
+                s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
+                s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
+            pseudo_samples.extend(sample)
+        self.pseudo_samples = pseudo_samples
+
 
     
     def train_dataloader(self): 
         cfg = self.cfg
         trainset = EncodedAssistQA(self.train_samples)
-        pset = EncodedAssistQA(copy.deepcopy(self.valid_samples))
+        pset = EncodedAssistQA(self.pseudo_samples)
         return [DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
             shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True),
             DataLoader(pset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
