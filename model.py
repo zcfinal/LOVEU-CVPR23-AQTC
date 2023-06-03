@@ -144,8 +144,12 @@ class Q2A_Function(nn.Module):
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
-        
+
+        if cfg.MODEL.TIMEEMB:
+            self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
+            nn.init.normal_(self.timeemb,std=0.1)
         self.state = nn.Parameter(torch.randn(cfg.MODEL.DIM_STATE, device="cuda"))
+        nn.init.normal_(self.state,std=0.1)
         if cfg.MODEL.HISTORY.ARCH == "mlp":
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
@@ -169,11 +173,15 @@ class Q2A_Function(nn.Module):
                 score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
                 timestamps = meta['paras_timestamp']
                 para = self.mlp_t(para)
+                if self.cfg.MODEL.TIMEEMB:
+                    para = para + self.timeemb[:para.shape[0],:]
                 para = torch.matmul(score, para)
             else:
                 score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
                 timestamps = meta['sents_timestamp']
                 script = self.mlp_t(script)
+                if self.cfg.MODEL.TIMEEMB:
+                    para = para + self.timeemb[:para.shape[0],:]
                 script = torch.matmul(score, script)
             text_seg = para if self.function_centric else script
 
@@ -186,6 +194,8 @@ class Q2A_Function(nn.Module):
                 else:
                     video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
             video_seg = torch.stack(video_seg)
+            if self.cfg.MODEL.TIMEEMB:
+                video_seg = video_seg + self.timeemb[:video_seg.shape[0],:]
             video_seg = torch.matmul(score, video_seg)
                 
             question = self.mlp_t(question)

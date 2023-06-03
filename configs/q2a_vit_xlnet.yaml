@@ -13,6 +13,7 @@ INPUT:
   DIM: 768
   NUM_MASKS: 1
 MODEL:
+  TIMEEMB: True 
   ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1
