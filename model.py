@@ -232,10 +232,10 @@ class Q2A_Function(nn.Module):
                     count += 1
                 else:
                     scores.append(logits.view(-1).tolist())
-                if self.history_train == "gt" and self.training:
+                if self.history_train == "gt" and self.training and not p:
                     state = inputs[label[i]]
                 if (self.history_train == "max" and self.training) \
-                    or (self.history_val == "max" and not self.training):
+                    or (self.history_val == "max" and not self.training) or p:
                     state = inputs[logits.argmax()]
             if not self.training:
                 meta["scores"] = scores
