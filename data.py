@@ -2,6 +2,7 @@ import os
 import torch
 import random
 import math
+import copy
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
 
@@ -64,8 +65,11 @@ class EncodedAssistQADataModule(LightningDataModule):
     def train_dataloader(self): 
         cfg = self.cfg
         trainset = EncodedAssistQA(self.train_samples)
-        return DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
-            shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)
+        pset = EncodedAssistQA(copy.deepcopy(self.valid_samples))
+        return [DataLoader(trainset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
+            shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True),
+            DataLoader(pset, batch_size=cfg.SOLVER.BATCH_SIZE, collate_fn=EncodedAssistQA.collate_fn,
+            shuffle=True, drop_last=True, num_workers=cfg.DATALOADER.NUM_WORKERS, pin_memory=True)]
 
     def val_dataloader(self):
         cfg = self.cfg

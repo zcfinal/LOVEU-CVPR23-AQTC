@@ -164,7 +164,7 @@ class Q2A_Function(nn.Module):
         self.function_centric = cfg.MODEL.FUNCTION_CENTRIC
         self.cfg = cfg
 
-    def forward(self, batch):
+    def forward(self, batch, p=False):
         loss, count = 0, 0
         results = []
         for video, script, question, para, actions, label, meta in batch:
@@ -222,8 +222,13 @@ class Q2A_Function(nn.Module):
                 else:
                     states = torch.cat([inputs, state.expand_as(inputs)], dim=1)
                 logits = self.proj(states)
-                if self.training:
+                if self.training and not p:
                     loss += F.cross_entropy(logits.view(1, -1), label[i].view(-1))
+                    count += 1
+                elif p:
+                    prob,psedo_label = torch.max(F.softmax(logits.detach(),0),0)
+                    mask = prob.ge(0.7).float().view(-1)
+                    loss += F.cross_entropy(logits.view(1, -1), psedo_label.view(-1))*mask
                     count += 1
                 else:
                     scores.append(logits.view(-1).tolist())
@@ -255,10 +260,15 @@ class ModelModule(LightningModule):
         self.cfg = cfg
     
     def training_step(self, batch, idx):
-        loss = self.model(batch)
+        labeled_data, unlabeled_data = batch
+        loss = self.model(labeled_data)
         dataset = self.trainer.datamodule.__class__.__name__
         self.log(f"{dataset} loss", loss, rank_zero_only=True)
-        return loss
+
+        p_loss = self.model(unlabeled_data,p=True)
+        self.log(f"{dataset} pseudo loss", p_loss, rank_zero_only=True)
+        sum_loss = loss+p_loss
+        return sum_loss
     
     def configure_optimizers(self):
         cfg = self.cfg
