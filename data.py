@@ -51,7 +51,7 @@ class EncodedAssistQADataModule(LightningDataModule):
         for t in os.listdir(root):
             sample = torch.load(os.path.join(root, t, cfg.INPUT.QA), map_location="cpu")
             for s in sample:
-                s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
+                s["video"] = os.path.join(self.cfg.DATASET.VIDEO, t, cfg.INPUT.VIDEO)
                 s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
                 s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
             random.shuffle(sample)
@@ -64,7 +64,7 @@ class EncodedAssistQADataModule(LightningDataModule):
         for t in os.listdir(root):
             sample = torch.load(os.path.join(root, t, cfg.INPUT.QATEST), map_location="cpu")
             for s in sample:
-                s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
+                s["video"] = os.path.join(self.cfg.DATASET.VIDEO, t, cfg.INPUT.VIDEO)
                 s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
                 s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
             pseudo_samples.extend(sample)
@@ -97,7 +97,7 @@ class EncodedAssistQATestDataModule(EncodedAssistQADataModule):
         for t in os.listdir(root):
             sample = torch.load(os.path.join(root, t, cfg.INPUT.QA), map_location="cpu")
             for s in sample:
-                s["video"] = os.path.join(root, t, cfg.INPUT.VIDEO)
+                s["video"] = os.path.join(self.cfg.DATASET.VIDEO, t, cfg.INPUT.VIDEO)
                 s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
                 s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
             valid_samples.extend(sample)

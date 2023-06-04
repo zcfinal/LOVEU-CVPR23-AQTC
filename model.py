@@ -145,6 +145,10 @@ class Q2A_Function(nn.Module):
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
 
+        self.v_trans = nn.Linear(cfg.INPUT.S3DDIM,cfg.INPUT.DIM)
+        nn.init.kaiming_normal_(self.v_trans.weight)
+        nn.init.zeros_(self.v_trans.bias)
+
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
             nn.init.normal_(self.timeemb,std=0.1)
@@ -186,6 +190,7 @@ class Q2A_Function(nn.Module):
             text_seg = para if self.function_centric else script
 
             # for visual
+            video = self.v_trans(video)
             video = self.mlp_v(video)
             video_seg = []
             for seg in timestamps:
@@ -230,6 +235,9 @@ class Q2A_Function(nn.Module):
                     mask = prob.ge(0.9).float().view(-1)
                     loss += F.cross_entropy(logits.view(1, -1), psedo_label.view(-1))*mask
                     count += 1
+                    #no confidence break
+                    if mask==0:
+                        break
                 else:
                     scores.append(logits.view(-1).tolist())
                 if self.history_train == "gt" and self.training and not p:

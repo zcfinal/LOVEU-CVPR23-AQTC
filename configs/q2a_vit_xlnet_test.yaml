@@ -12,9 +12,10 @@ INPUT:
   SCRIPT: 'script.pth'
   PARA: 'paras.pth'
   DIM: 768
+  S3DDIM: 512
   NUM_MASKS: 1
 MODEL:
-  TIMEEMB: True 
+  TIMEEMB: False
   ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1

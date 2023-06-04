@@ -162,12 +162,13 @@ class RawAssistQA(Dataset):
             return timestamps, paras, output_path
 
         if self.for_button:
+            import ipdb
+            ipdb.set_trace()
             buttons_dict = self.get_buttons_dict(sample_path) # image -> buttons, name -> bbox
             for qa in qas:
                 question = qa['question']
                 qa['folder'] = folder
                 qa['src_question'] = question
-                qa['question'] = self.tokenizer(f'Question: {question}', return_tensors="pt")
                 qa['button_images'] = []
                 qa['answer_bidxs'] = []
                 # for each step, answer - image
@@ -204,7 +205,6 @@ class RawAssistQA(Dataset):
                             bidx = len(qa['button_images'][-1]) - 1
                         bidx = bidxs[0]
                         answer_bidxs_per_step.append(bidx)
-                        answers_per_step[j] = self.tokenizer(f'Answer: {answer}', return_tensors="pt")
                     qa['answer_bidxs'].append(answer_bidxs_per_step)
             return qas, output_path, f'qa_maskx{self.num_masks}'
 
@@ -273,7 +273,7 @@ class DataModule(LightningDataModule):
         cfg = self.cfg
         testset = RawAssistQA(cfg)
         return DataLoader(testset, batch_size=1, collate_fn=RawAssistQA.collate_fn,
-            shuffle=False, drop_last=False, num_workers=2, pin_memory=True)
+            shuffle=False, drop_last=False, num_workers=0, pin_memory=True)
 
 def build_data(cfg):
     return DataModule(cfg)

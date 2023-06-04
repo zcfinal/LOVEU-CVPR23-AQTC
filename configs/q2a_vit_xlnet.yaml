@@ -1,5 +1,6 @@
 DATASET: 
   TRAIN: 'encoder/outputs/vit_xlnet/video'
+  VIDEO: 'pretrain/outputs/S3D/video'
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: '/data/wushiwei/data/assistq/assistq_test/test_with_gt.json'
@@ -12,9 +13,10 @@ INPUT:
   SCRIPT: 'script.pth'
   PARA: 'paras.pth'
   DIM: 768
+  S3DDIM: 512
   NUM_MASKS: 1
 MODEL:
-  TIMEEMB: True 
+  TIMEEMB: False
   ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1
