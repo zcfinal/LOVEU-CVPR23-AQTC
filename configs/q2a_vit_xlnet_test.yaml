@@ -7,6 +7,7 @@ DATALOADER:
   NUM_WORKERS: 4
 INPUT:
   QA: 'qa_maskx-1test.pth'
+  QATEST: 'qa_maskx-1test.pth'
   VIDEO: 'video.pth'
   SCRIPT: 'script.pth'
   PARA: 'paras.pth'
