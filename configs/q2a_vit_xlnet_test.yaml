@@ -1,5 +1,6 @@
 DATASET: 
   TRAIN: 'encoder/outputs/vit_xlnet/video'
+  VIDEO: 'pretrain/outputs/S3D/video'
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: ''

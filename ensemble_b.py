@@ -12,13 +12,16 @@ fileroot = '/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/outputs/cvpr_loveu2023/'
 exp_names = [
     'SSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
     'SSL_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    #'splitqa_lr1e-4_bs16_epoch100',
+    'noconfibreak_S3Dvideo_addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
+    'S3Dvideo_addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
+    'addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
+    'splitqa_lr1e-4_bs16_epoch100',
     'layernorm_kaiming_statepara_timeemb_lr1e-4_bs16_epoch100',
     'layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
     'layernorm_kaiming_splitmlp_lr1e-4_bs16_epoch100',
     'layernorm_kaiming_sentence_lr1e-4_bs16_epoch100',
     'layernorm_kaiming_lr1e-4_bs16_epoch100',
-    #'agglearn_lr1e-4_bs16_epoch100',
+    'agglearn_lr1e-4_bs16_epoch100',
     'baseline_lr1e-4_bs16_epoch100'
 ]
 
