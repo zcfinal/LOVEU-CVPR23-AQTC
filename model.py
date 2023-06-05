@@ -231,6 +231,7 @@ class Q2A_Function(nn.Module):
         self.mlp_pre = MLP(cfg.INPUT.DIM, cfg.MODEL.DIM_STATE)
 
         self.button_gate = Gate(cfg.INPUT.DIM)
+        self.text_attn = Attention(cfg.INPUT.DIM)
         self.attn = Attention(cfg.INPUT.DIM)
         self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
 
@@ -257,15 +258,18 @@ class Q2A_Function(nn.Module):
         loss, count = 0, 0
         results = []
         for video, script, question, para, actions, label, meta in batch:
-            TeachForce = True if random.uniform(0,1)<max(0.05,1-0.05*epoch) else False
+            TeachForce = True if random.uniform(0,1)<max(0,1-0.05*epoch) else False
             # for text
+            question = self.mlp_t(question)
             if self.function_centric:
                 score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
                 timestamps = meta['paras_timestamp']
                 para = self.mlp_t(para)
                 if self.cfg.MODEL.TIMEEMB:
                     para = para + self.timeemb[:para.shape[0],:]
+                para_learn = self.text_attn(question,para.unsqueeze(0)).view(-1)
                 para = torch.matmul(score, para)
+                para = (para+para_learn)/2
             else:
                 score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
                 timestamps = meta['sents_timestamp']
@@ -280,8 +284,6 @@ class Q2A_Function(nn.Module):
             if self.cfg.MODEL.TIMEEMB:
                 video = video + self.timeemb[:video.shape[0],:]
             # video_seg = torch.matmul(score, video)
-
-            question = self.mlp_t(question)
 
             video_dynamic = self.attn(question,video.unsqueeze(0))
 
