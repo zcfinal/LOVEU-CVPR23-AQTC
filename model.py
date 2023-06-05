@@ -190,15 +190,48 @@ class Gate(nn.Module):
         emb = z*image_emb + (1-z)*text_emb
         return emb
 
+class AdditiveAttention(nn.Module):
+    ''' AttentionPooling used to weighted aggregate news vectors
+    Arg: 
+        d_h: the last dimension of input
+    '''
+    def __init__(self, d_h, hidden_size=200):
+        super(AdditiveAttention, self).__init__()
+        self.att_fc1 = nn.Linear(d_h, hidden_size)
+        self.att_fc2 = nn.Linear(hidden_size, 1)
+
+    def forward(self, x, attn_mask=None):
+        """
+        Args:
+            x: batch_size, candidate_size, candidate_vector_dim
+            attn_mask: batch_size, candidate_size
+        Returns:
+            (shape) batch_size, candidate_vector_dim
+        """
+        bz = x.shape[0]
+        e = self.att_fc1(x)
+        e = nn.ReLU()(e)
+        alpha = self.att_fc2(e)
+
+        alpha = torch.exp(alpha)
+        if attn_mask is not None:
+            alpha = alpha * attn_mask.unsqueeze(2)
+        alpha = alpha / (torch.sum(alpha, dim=1, keepdim=True) + 1e-8)
+
+        x = torch.bmm(x.permute(0, 2, 1), alpha)
+        x = torch.reshape(x, (bz, -1))  # (bz, 400)
+        return x
+
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
-        self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
+        self.mlp_pre = MLP(cfg.INPUT.DIM, cfg.MODEL.DIM_STATE)
 
         self.button_gate = Gate(cfg.INPUT.DIM)
         self.attn = Attention(cfg.INPUT.DIM)
+        self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -261,15 +294,16 @@ class Q2A_Function(nn.Module):
                 a_buttons = self.mlp_v(
                     torch.stack(a_buttons).view(A, -1, a_texts.shape[1])
                 ).view(A, -1) 
-                
+
                 qa = question.repeat(A,1)
 
                 a_buttons = self.button_gate(a_buttons,a_texts)
 
-                inputs = torch.cat(
+                inputs = torch.stack(
                     [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
                     dim=1
                 )
+                inputs = self.fac_att(inputs)
 
                 inputs = self.mlp_pre(inputs)
                 if hasattr(self, "gru"):
