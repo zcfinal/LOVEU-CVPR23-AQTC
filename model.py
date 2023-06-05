@@ -220,13 +220,13 @@ class Q2A_Function(nn.Module):
             video = self.mlp_v(video)
             if self.cfg.MODEL.TIMEEMB:
                 video = video + self.timeemb[:video.shape[0],:]
-            video_seg = torch.matmul(score, video)
+            # video_seg = torch.matmul(score, video)
 
             question = self.mlp_t(question)
 
             video_dynamic = self.attn(question,video.unsqueeze(0))
 
-            video_seg = (video_seg+video_dynamic)/2
+            video_seg = video_dynamic
             
             state = self.state
             scores = []
