@@ -268,8 +268,8 @@ class Q2A_Function(nn.Module):
                 if self.cfg.MODEL.TIMEEMB:
                     para = para + self.timeemb[:para.shape[0],:]
                 para_learn = self.text_attn(question,para.unsqueeze(0)).view(-1)
-                para = torch.matmul(score, para)
-                para = (para+para_learn)/2
+                #para = torch.matmul(score, para)
+                para = para_learn
             else:
                 score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
                 timestamps = meta['sents_timestamp']
