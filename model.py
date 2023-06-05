@@ -137,6 +137,35 @@ class Q2A(nn.Module):
         else:
             return results
 
+class Attention(nn.Module):
+    ''' AttentionPooling used to weighted aggregate news vectors
+    Arg: 
+        d_h: the last dimension of input
+    '''
+    def __init__(self,dim):
+        super(Attention, self).__init__()
+        self.key = nn.Linear(dim,dim)
+        self.query = nn.Linear(dim,dim)
+        nn.init.kaiming_normal_(self.key.weight)
+        nn.init.zeros_(self.key.bias)
+        nn.init.kaiming_normal_(self.query.weight)
+        nn.init.zeros_(self.query.bias)
+
+    def forward(self, query, x, attn_mask=None):
+        bz = x.shape[0]
+        query = self.query(query)
+        key = self.key(x)
+        
+        alpha = torch.bmm(query.unsqueeze(1),key.permute(0,2,1))
+        alpha = alpha - torch.max(alpha)
+        alpha = torch.exp(alpha)
+        if attn_mask is not None:
+            alpha = alpha * attn_mask.unsqueeze(2)
+        alpha = alpha / (torch.sum(alpha, dim=2, keepdim=True) + 1e-8)
+
+        x = torch.bmm(alpha, x)
+        x = torch.reshape(x, (bz, -1))  # (bz, 400)
+        return x
 
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
@@ -145,6 +174,7 @@ class Q2A_Function(nn.Module):
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
 
+        self.attn = Attention(cfg.INPUT.DIM)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -191,8 +221,12 @@ class Q2A_Function(nn.Module):
             if self.cfg.MODEL.TIMEEMB:
                 video = video + self.timeemb[:video.shape[0],:]
             video_seg = torch.matmul(score, video)
-                
+
             question = self.mlp_t(question)
+
+            video_dynamic = self.attn(question,video.unsqueeze(0))
+
+            video_seg = (video_seg+video_dynamic)/2
             
             state = self.state
             scores = []
