@@ -145,9 +145,6 @@ class Q2A_Function(nn.Module):
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
 
-        self.v_trans = nn.Linear(cfg.INPUT.S3DDIM,cfg.INPUT.DIM)
-        nn.init.kaiming_normal_(self.v_trans.weight)
-        nn.init.zeros_(self.v_trans.bias)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -190,18 +187,10 @@ class Q2A_Function(nn.Module):
             text_seg = para if self.function_centric else script
 
             # for visual
-            video = self.v_trans(video)
             video = self.mlp_v(video)
-            video_seg = []
-            for seg in timestamps:
-                if seg[0] >= seg[1]:
-                    video_seg.append(video[seg[0]])
-                else:
-                    video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
-            video_seg = torch.stack(video_seg)
             if self.cfg.MODEL.TIMEEMB:
-                video_seg = video_seg + self.timeemb[:video_seg.shape[0],:]
-            video_seg = torch.matmul(score, video_seg)
+                video = video + self.timeemb[:video.shape[0],:]
+            video_seg = torch.matmul(score, video)
                 
             question = self.mlp_t(question)
             

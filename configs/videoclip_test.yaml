@@ -1,6 +1,6 @@
 DATASET: 
-  TRAIN: 'encoder/outputs/vit_xlnet/video'
-  VIDEO: 'pretrain/outputs/S3D/video'
+  TRAIN: '/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/pretrain/outputs/VideoCLIP/video'
+  VIDEO: '/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/pretrain/outputs/VideoCLIP/video'
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: ''
@@ -9,7 +9,7 @@ DATALOADER:
 INPUT:
   QA: 'qa_maskx-1test.pth'
   QATEST: 'qa_maskx-1test.pth'
-  VIDEO: 'video.pth'
+  VIDEO: 'paras_video_features.pth'
   SCRIPT: 'script.pth'
   PARA: 'paras.pth'
   DIM: 768

@@ -15,8 +15,8 @@ class EncodedAssistQA(Dataset):
         sample = self.samples[index]
         video = torch.load(sample["video"], map_location="cpu")
 
-        timestamp_script = torch.load(sample["script"], map_location="cpu")
-        sents_timestamp, script = timestamp_script
+        #timestamp_script = None
+        sents_timestamp, script = None, None
 
         timestamp_para = torch.load(sample['para'], map_location="cpu")
         paras_timestamp, function_para = timestamp_para
