@@ -26,6 +26,7 @@ class RawAssistQA(Dataset):
     def __init__(self, cfg):
         super().__init__()
         self.dataset_root = cfg.DATASET.ROOT 
+        self.video_root = cfg.DATASET.VIDEO
         self.dataset_split = cfg.DATASET.SPLIT
         self.dataset_label = cfg.DATASET.LABEL
         self.label_file = os.path.join(self.dataset_root, self.dataset_label)
@@ -162,8 +163,6 @@ class RawAssistQA(Dataset):
             return timestamps, paras, output_path
 
         if self.for_button:
-            import ipdb
-            ipdb.set_trace()
             buttons_dict = self.get_buttons_dict(sample_path) # image -> buttons, name -> bbox
             for qa in qas:
                 question = qa['question']
@@ -264,6 +263,71 @@ class RawAssistQA(Dataset):
     def collate_fn(samples):
         return samples
 
+class VideoCLIPQA(RawAssistQA):
+    def __getitem__(self, index):
+        folder = self.folders[index]
+        sample_path = os.path.join(self.dataset_root, self.dataset_split, folder)
+        video_feature_path = os.path.join(self.video_root, self.dataset_split, folder)
+        output_path = os.path.join(self.output_dir, self.dataset_split, folder)
+        qas = self.qa_dict[folder]
+
+        if self.for_script:
+            script, timestamps = self.get_script(sample_path)
+            video_frame = torch.load(os.path.join(video_feature_path, "video.pth"),map_location='cpu')
+            return script, timestamps, video_frame, output_path
+        
+        if self.for_para:
+            timestamps, paras = self.get_para(sample_path)
+            video_frame = torch.load(os.path.join(video_feature_path, "video.pth"),map_location='cpu')
+            return timestamps, paras, video_frame, output_path
+
+        if self.for_qa:
+            buttons_dict = self.get_buttons_dict(sample_path) # image -> buttons, name -> bbox
+            for qa in qas:
+                question = qa['question']
+                qa['folder'] = folder
+                qa['src_question'] = question
+                qa['question'] = f'Question: {question}'
+                qa['button_images'] = []
+                qa['answer_bidxs'] = []
+                # for each step, answer - image
+                assert len(qa['answers']) == len(qa['images']), output_path
+                for i, (answers_per_step, image) in enumerate(zip(qa['answers'], qa['images'])): 
+                    assert image in buttons_dict, output_path
+                    qa_buttons = buttons_dict[image]
+                    assert qa_buttons, output_path
+                    names = qa_buttons.keys()
+                    all_bboxes = qa_buttons.values()
+                    qa['button_images'].append(
+                        self.get_all_single_button_images(
+                            sample_path, image, 
+                            all_bboxes,
+                            self.frame_transform, 
+                            num_masks=self.num_masks
+                        )
+                    )
+                    answer_bidxs_per_step = []
+                    for j, answer in enumerate(answers_per_step):
+                        # find the button in answer
+                        bboxes = [qa_buttons[name] for name in names if name in answer]
+                        bidxs = [k for k, name in enumerate(names) if name in answer]
+                        assert len(bboxes) > 0, output_path
+                        if len(bboxes) > 1: # multiple bboxes
+                            qa['button_images'][-1].append(
+                                self.get_multiple_button_images(
+                                    sample_path, image, bboxes,
+                                    all_bboxes,
+                                    self.frame_transform, 
+                                    num_masks=self.num_masks
+                                )
+                            )
+                            bidx = len(qa['button_images'][-1]) - 1
+                        bidx = bidxs[0]
+                        answer_bidxs_per_step.append(bidx)
+                        answers_per_step[j] = f'Answer: {answer}'
+                    qa['answer_bidxs'].append(answer_bidxs_per_step)
+            return qas, output_path, f'qa_maskx{self.num_masks}'
+
 class DataModule(LightningDataModule):
     def __init__(self, cfg):
         super().__init__()
@@ -271,7 +335,7 @@ class DataModule(LightningDataModule):
     
     def test_dataloader(self):
         cfg = self.cfg
-        testset = RawAssistQA(cfg)
+        testset = eval(cfg.DATASET.TYPE)(cfg)
         return DataLoader(testset, batch_size=1, collate_fn=RawAssistQA.collate_fn,
             shuffle=False, drop_last=False, num_workers=0, pin_memory=True)
 

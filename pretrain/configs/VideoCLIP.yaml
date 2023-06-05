@@ -2,6 +2,8 @@ DATASET:
   ROOT: "/data/chenjoya/assistq"
   SPLIT: "train"
   LABEL: "train_with_score.json"
+  TYPE: "VideoCLIPQA"
+  VIDEO: "/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/pretrain/outputs/S3D"
 MODEL: "VideoCLIP"
 INPUT: 
   FPS: 30
@@ -11,6 +13,7 @@ FOR:
   SCRIPT: False
   QA: False
   PARA: False
+  BUTTON: False
 QA:
   NUM_MASKS: -1 # best performance
 SUFFIX: ''

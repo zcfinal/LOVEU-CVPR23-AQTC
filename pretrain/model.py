@@ -20,8 +20,8 @@ class VideoCLIP(LightningModule):
         caps, cmasks = aligner._build_text_seq(
             tokenizer("template", add_special_tokens=False)["input_ids"]
         )
-        self.caps = caps
-        self.cmasks = cmasks
+        self.caps = caps.unsqueeze(0).cuda()
+        self.cmasks = cmasks.unsqueeze(0).cuda()
         self.for_video = cfg.FOR.VIDEO
         self.for_script = cfg.FOR.SCRIPT
         self.for_qa = cfg.FOR.QA
@@ -31,29 +31,37 @@ class VideoCLIP(LightningModule):
     def test_step(self, batch, idx):
         if batch[0] is None:
             return 
-        
-        if self.for_video:
-            video, path = batch[0] 
-            # set smaller batch size to prevent OOM
-            features = self.model.forward_video(video,self.caps,self.cmasks)
-            # features = self.vision_model(video)
-            if not os.path.exists(path):
-                os.makedirs(path)
-            torch.save(features, os.path.join(path, "video.pth"))
 
         if self.for_script:
-            script, timestamps, path = batch[0]
+            script, timestamps, video_frame, path = batch[0]
             if not os.path.exists(path):
                 os.makedirs(path)
             features = torch.cat([self.text_model(**sentence).last_hidden_state[:,-1,:] for sentence in script])
             torch.save([timestamps, features], os.path.join(path, "script.pth"))
 
         if self.for_para:
-            timestamps, paras, path = batch[0]
+            timestamps, paras, video_frame, path = batch[0]
             if not os.path.exists(path):
                 os.makedirs(path)
-            features = torch.cat([self.text_model(**sentence).last_hidden_state[:,-1,:] for sentence in paras])
+            tokens = self.tokenizer([s for s in paras], add_special_tokens=False)["input_ids"]
+            tokens = [self.aligner._build_text_seq(token) for token in tokens]
+            caps, cmasks = zip(*tokens)
+            caps = torch.stack(caps,0).cuda()
+            cmasks = torch.stack(cmasks,0).cuda()
+            features = []
+            for i in range(caps.shape[0]):
+                features.append(self.model.forward_text(caps[i].unsqueeze(0),cmasks[i].unsqueeze(0)))
+            features = torch.cat(features,0)
             torch.save([timestamps, features], os.path.join(path, "paras.pth"))
+
+            para_video = []
+            video_frame = video_frame.cuda()
+
+            for start_t,end_t in timestamps:
+                para_video_feature = self.model.forward_video(video_frame[start_t:end_t].unsqueeze(0),self.caps,self.cmasks)
+                para_video.append(para_video_feature)
+            para_video = torch.cat(para_video,0)
+            torch.save(para_video, os.path.join(path, "paras_video_features.pth"))
 
 
         if self.for_qa:
@@ -61,12 +69,18 @@ class VideoCLIP(LightningModule):
             if not os.path.exists(path):
                 os.makedirs(path)
             for qa in qas:
-                qa['question'] = self.text_model(**qa['question']).last_hidden_state[:,-1,:]
+                caps, cmasks = self.aligner._build_text_seq(
+                    self.tokenizer(qa['question'], add_special_tokens=False)["input_ids"]
+                )
+                caps, cmasks = caps[None, :], cmasks[None, :]
+                caps = caps.cuda()
+                cmasks = cmasks.cuda()
+                qa['question'] = self.model.forward_text(caps,cmasks)
                 button_features = []
                 for button_images_per_step in qa['button_images']:
                     button_features.append(
                         [
-                            self.vision_model(button_image.view(-1,3,button_image.shape[-2], button_image.shape[-1])).flatten() \
+                            self.model.forward_button(button_image,self.caps,self.cmasks) \
                             for button_image in button_images_per_step
                         ]
                     )
@@ -74,7 +88,15 @@ class VideoCLIP(LightningModule):
                     for j, answer in enumerate(answers_per_step):
                         bidx = qa['answer_bidxs'][i][j]
                         button_feature = button_features[i][bidx]
-                        text_feature = self.text_model(**answer).last_hidden_state[:,-1,:]
+
+                        caps, cmasks = self.aligner._build_text_seq(
+                            self.tokenizer(answer, add_special_tokens=False)["input_ids"]
+                        )
+                        caps, cmasks = caps[None, :], cmasks[None, :]
+                        caps = caps.cuda()
+                        cmasks = cmasks.cuda()
+
+                        text_feature = self.model.forward_text(caps,cmasks)
                         answer_feature = dict(text=text_feature, button=button_feature)
                         qa['answers'][i][j] = answer_feature
             torch.save(qas, os.path.join(path, f'{tag}{self.suffix}.pth'))
