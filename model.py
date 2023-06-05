@@ -167,6 +167,29 @@ class Attention(nn.Module):
         x = torch.reshape(x, (bz, -1))  # (bz, 400)
         return x
 
+class Gate(nn.Module):
+    def __init__(self,dim):
+        super().__init__()
+        self.dim = dim
+        self.trans1 = nn.Linear(dim,dim)
+        self.trans2 = nn.Linear(dim,dim)
+        self.trans_all = nn.Linear(dim*2,dim)
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+        self.apply(self.init_weights)
+        
+    def init_weights(self, module):
+        if isinstance(module, (nn.Linear)):
+            nn.init.xavier_normal_(module.weight)
+    
+    def forward(self,image_emb,text_emb):
+        whole = torch.cat([image_emb,text_emb],1)
+        z = self.sigmoid(self.trans_all(whole))
+        image_emb = self.tanh(self.trans1(image_emb))
+        text_emb = self.tanh(self.trans2(text_emb))
+        emb = z*image_emb + (1-z)*text_emb
+        return emb
+
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -174,6 +197,7 @@ class Q2A_Function(nn.Module):
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
 
+        self.button_gate = Gate(cfg.INPUT.DIM)
         self.attn = Attention(cfg.INPUT.DIM)
 
         if cfg.MODEL.TIMEEMB:
@@ -237,7 +261,10 @@ class Q2A_Function(nn.Module):
                 a_buttons = self.mlp_v(
                     torch.stack(a_buttons).view(A, -1, a_texts.shape[1])
                 ).view(A, -1) 
-                qa = question + a_texts
+                
+                qa = question.repeat(A,1)
+
+                a_buttons = self.button_gate(a_buttons,a_texts)
 
                 inputs = torch.cat(
                     [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
