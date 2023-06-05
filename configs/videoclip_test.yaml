@@ -20,6 +20,7 @@ MODEL:
   ARCH: 'q2a_function'
   DIM_STATE: 768
   NUM_HEADS: 1
+  MODERATIO: 0.8
   HISTORY: 
     TRAIN: 'gt'
     VAL: 'max'

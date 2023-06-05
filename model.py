@@ -2,6 +2,7 @@ import torch, os, json
 from torch import nn
 from torch.functional import F
 from pytorch_lightning import LightningModule
+import random
 
 
 class MLP(nn.Module):
@@ -231,7 +232,7 @@ class Q2A_Function(nn.Module):
 
         self.button_gate = Gate(cfg.INPUT.DIM)
         self.attn = Attention(cfg.INPUT.DIM)
-        self.extractor_att = Attention(cfg.INPUT.DIM)
+        self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -252,10 +253,11 @@ class Q2A_Function(nn.Module):
         self.function_centric = cfg.MODEL.FUNCTION_CENTRIC
         self.cfg = cfg
 
-    def forward(self, batch, p=False):
+    def forward(self, batch, epoch=0, p=False):
         loss, count = 0, 0
         results = []
         for video, script, question, para, actions, label, meta in batch:
+            TeachForce = True if random.uniform(0,1)<max(0.05,1-0.05*epoch) else False
             # for text
             if self.function_centric:
                 score = torch.tensor(meta['paras_score']).softmax(dim=0).cuda()
@@ -300,10 +302,10 @@ class Q2A_Function(nn.Module):
                 a_buttons = self.button_gate(a_buttons,a_texts)
 
                 inputs = torch.stack(
-                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1)],
+                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
                     dim=1
                 )
-                inputs = self.extractor_att(a_buttons.view(A, -1),inputs)
+                inputs = self.fac_att(inputs)
 
                 inputs = self.mlp_pre(inputs)
                 if hasattr(self, "gru"):
@@ -324,10 +326,10 @@ class Q2A_Function(nn.Module):
                         break
                 else:
                     scores.append(logits.view(-1).tolist())
-                if self.history_train == "gt" and self.training and not p:
+                if self.history_train == "gt" and self.training and not p and TeachForce:
                     state = inputs[label[i]]
-                if (self.history_train == "max" and self.training) \
-                    or (self.history_val == "max" and not self.training) or p:
+                elif (self.history_train == "max" and self.training) \
+                    or (self.history_val == "max" and not self.training) or p or not TeachForce:
                     state = inputs[logits.argmax()]
             if not self.training:
                 meta["scores"] = scores
@@ -353,11 +355,11 @@ class ModelModule(LightningModule):
     
     def training_step(self, batch, idx):
         labeled_data, unlabeled_data = batch
-        loss = self.model(labeled_data)
+        loss = self.model(labeled_data,self.current_epoch+1)
         dataset = self.trainer.datamodule.__class__.__name__
         self.log(f"{dataset} loss", loss, rank_zero_only=True)
 
-        p_loss = self.model(unlabeled_data,p=True)
+        p_loss = self.model(unlabeled_data,self.current_epoch+1,p=True)
         self.log(f"{dataset} pseudo loss", p_loss, rank_zero_only=True)
         sum_loss = loss+p_loss
         return sum_loss
