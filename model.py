@@ -231,7 +231,7 @@ class Q2A_Function(nn.Module):
 
         self.button_gate = Gate(cfg.INPUT.DIM)
         self.attn = Attention(cfg.INPUT.DIM)
-        self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
+        self.extractor_att = Attention(cfg.INPUT.DIM)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -300,10 +300,10 @@ class Q2A_Function(nn.Module):
                 a_buttons = self.button_gate(a_buttons,a_texts)
 
                 inputs = torch.stack(
-                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
+                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1)],
                     dim=1
                 )
-                inputs = self.fac_att(inputs)
+                inputs = self.extractor_att(a_buttons.view(A, -1),inputs)
 
                 inputs = self.mlp_pre(inputs)
                 if hasattr(self, "gru"):
