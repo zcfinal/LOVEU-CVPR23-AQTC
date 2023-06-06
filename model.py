@@ -227,11 +227,11 @@ class AdditiveAttention(nn.Module):
 class MOE(nn.Module):
     def __init__(self, num_experts, emb_dim, input_dim, hidden_dim, output_dim):
         super(MOE, self).__init__()
-        self.class_para = nn.Parameter(torch.empty((4, emb_dim)))
-        nn.init.normal_(self.class_para,std=0.1)
+        # self.class_para = nn.Parameter(torch.empty((4, emb_dim)))
+        # nn.init.normal_(self.class_para,std=0.1)
         self.num_experts = num_experts
         self.expert_nets = nn.ModuleList([nn.Linear(input_dim, output_dim) for _ in range(num_experts)])
-        self.gate = Gate(emb_dim)
+        #self.gate = Gate(emb_dim)
         self.trans = nn.Linear(input_dim,emb_dim)
         self.gate_net = nn.Sequential(
             nn.Linear(emb_dim, emb_dim//2),
@@ -241,13 +241,13 @@ class MOE(nn.Module):
     def forward(self, x, step_i):
         expert_outputs = [expert_net(x) for expert_net in self.expert_nets]
         expert_outputs = torch.stack(expert_outputs, dim=1)
-        emb_idx = self.get_emb_idx(step_i)
-        class_emb = self.class_para[emb_idx]
-        class_emb = class_emb.unsqueeze(0).repeat(expert_outputs.shape[0],1)
+        # emb_idx = self.get_emb_idx(step_i)
+        # class_emb = self.class_para[emb_idx]
+        # class_emb = class_emb.unsqueeze(0).repeat(expert_outputs.shape[0],1)
         trans_feature = self.trans(x)
         #class_emb = self.gate(class_emb,trans_feature)
-        class_emb = trans_feature
-        gate_logits = self.gate_net(class_emb)
+        #class_emb = trans_feature
+        gate_logits = self.gate_net(trans_feature)
         gate_probs = torch.softmax(gate_logits, dim=1)
         weighted_expert_outputs = torch.bmm(gate_probs.unsqueeze(1), expert_outputs).squeeze(1)
         return weighted_expert_outputs
