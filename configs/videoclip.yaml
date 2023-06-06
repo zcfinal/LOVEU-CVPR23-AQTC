@@ -16,6 +16,7 @@ INPUT:
   S3DDIM: 512
   NUM_MASKS: 1
 MODEL:
+  MOE: 4
   TIMEEMB: False
   ARCH: 'q2a_function'
   DIM_STATE: 768

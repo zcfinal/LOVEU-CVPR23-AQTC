@@ -223,6 +223,37 @@ class AdditiveAttention(nn.Module):
         x = torch.reshape(x, (bz, -1))  # (bz, 400)
         return x
 
+class MOE(nn.Module):
+    def __init__(self, num_experts, emb_dim, input_dim, hidden_dim, output_dim):
+        super(MOE, self).__init__()
+        self.class_para = nn.Parameter(torch.empty((4, emb_dim)))
+        nn.init.normal_(self.class_para,std=0.1)
+        self.num_experts = num_experts
+        self.expert_nets = nn.ModuleList([nn.Linear(input_dim, hidden_dim) for _ in range(num_experts)])
+        self.gate_net = nn.Sequential(
+            nn.Linear(emb_dim, emb_dim//2),
+            nn.ReLU(),
+            nn.Linear(emb_dim//2,self.num_experts))
+        self.output_net = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x, len):
+        emb_idx = self.get_emb_idx(len)
+        class_emb = self.class_para[emb_idx]
+        class_emb = class_emb.unsqueeze(0)
+        expert_outputs = [expert_net(x) for expert_net in self.expert_nets]
+        expert_outputs = torch.stack(expert_outputs, dim=1)
+        gate_logits = self.gate_net(class_emb)
+        gate_probs = torch.softmax(gate_logits, dim=1)
+        gate_probs = gate_probs.repeat(expert_outputs.shape[0],1)
+        weighted_expert_outputs = torch.bmm(gate_probs.unsqueeze(1), expert_outputs).squeeze(1)
+        output = self.output_net(weighted_expert_outputs)
+        return output
+    
+    def get_emb_idx(self,x):
+        if x>=4:
+            return 3
+        return x-1
+
 class Q2A_Function(nn.Module):
     def __init__(self, cfg) -> None:
         super().__init__()
@@ -244,7 +275,7 @@ class Q2A_Function(nn.Module):
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
             self.gru = nn.GRUCell(cfg.MODEL.DIM_STATE, cfg.MODEL.DIM_STATE)
-            self.proj = MLP(cfg.MODEL.DIM_STATE, 1)
+            self.proj = MOE(cfg.MODEL.MOE,64,cfg.MODEL.DIM_STATE,cfg.MODEL.DIM_STATE//2,1)
         else:
             assert False, "unknown arch"
         
@@ -283,11 +314,9 @@ class Q2A_Function(nn.Module):
             video = self.mlp_v(video)
             if self.cfg.MODEL.TIMEEMB:
                 video = video + self.timeemb[:video.shape[0],:]
-            video_seg = torch.matmul(score, video)
 
             video_dynamic = self.attn(question,video.unsqueeze(0))
-
-            video_seg = (video_dynamic+video_seg)/2
+            video_seg = video_dynamic
             
             state = self.state
             scores = []
@@ -314,7 +343,7 @@ class Q2A_Function(nn.Module):
                     states = self.gru(inputs, state.expand_as(inputs))
                 else:
                     states = torch.cat([inputs, state.expand_as(inputs)], dim=1)
-                logits = self.proj(states)
+                logits = self.proj(states,len(actions))
                 if self.training and not p:
                     loss += F.cross_entropy(logits.view(1, -1), label[i].view(-1))
                     count += 1
