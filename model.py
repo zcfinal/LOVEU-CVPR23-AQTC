@@ -270,8 +270,7 @@ class Q2A_Function(nn.Module):
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
             nn.init.normal_(self.timeemb,std=0.1)
-        self.state = nn.Parameter(torch.randn(cfg.MODEL.DIM_STATE, device="cuda"))
-        nn.init.normal_(self.state,std=0.1)
+        self.state_map = MLP(cfg.MODEL.DIM_STATE, cfg.MODEL.DIM_STATE)
         if cfg.MODEL.HISTORY.ARCH == "mlp":
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
@@ -319,8 +318,8 @@ class Q2A_Function(nn.Module):
             video_dynamic = self.attn(question,video.unsqueeze(0))
             video_seg = video_dynamic
             
-            state = self.state
             scores = []
+            state = None
             for i, actions_per_step in enumerate(actions):
                 a_texts, a_buttons = zip(*[(action['text'], action['button']) for action in actions_per_step])
                 a_texts = self.mlp_t(torch.cat(a_texts))
@@ -340,6 +339,8 @@ class Q2A_Function(nn.Module):
                 inputs = self.fac_att(inputs)
 
                 inputs = self.mlp_pre(inputs)
+                if state is None:
+                    state = self.state_map(inputs)
                 if hasattr(self, "gru"):
                     states = self.gru(inputs, state.expand_as(inputs))
                 else:
