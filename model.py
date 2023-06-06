@@ -39,6 +39,7 @@ class Q2A(nn.Module):
         self.qa2s = nn.MultiheadAttention(cfg.INPUT.DIM, cfg.MODEL.NUM_HEADS)
         
         self.state = torch.randn(cfg.MODEL.DIM_STATE, device="cuda")
+        nn.init.normal_(self.state,std=0.1)
         if cfg.MODEL.HISTORY.ARCH == "mlp":
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
@@ -244,7 +245,8 @@ class MOE(nn.Module):
         class_emb = self.class_para[emb_idx]
         class_emb = class_emb.unsqueeze(0).repeat(expert_outputs.shape[0],1)
         trans_feature = self.trans(x)
-        class_emb = self.gate(class_emb,trans_feature)
+        #class_emb = self.gate(class_emb,trans_feature)
+        class_emb = trans_feature
         gate_logits = self.gate_net(class_emb)
         gate_probs = torch.softmax(gate_logits, dim=1)
         weighted_expert_outputs = torch.bmm(gate_probs.unsqueeze(1), expert_outputs).squeeze(1)
@@ -270,7 +272,7 @@ class Q2A_Function(nn.Module):
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
             nn.init.normal_(self.timeemb,std=0.1)
-        self.state_map = MLP(cfg.MODEL.DIM_STATE, cfg.MODEL.DIM_STATE)
+        
         if cfg.MODEL.HISTORY.ARCH == "mlp":
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
@@ -278,6 +280,9 @@ class Q2A_Function(nn.Module):
             self.proj = MOE(cfg.MODEL.MOE,64,cfg.MODEL.DIM_STATE,cfg.MODEL.DIM_STATE//2,1)
         else:
             assert False, "unknown arch"
+        
+        self.state = nn.Parameter(torch.randn(cfg.MODEL.DIM_STATE, device="cuda"))
+        nn.init.normal_(self.state,std=0.1)
         
         self.history_train = cfg.MODEL.HISTORY.TRAIN
         self.history_val = cfg.MODEL.HISTORY.VAL
@@ -319,7 +324,7 @@ class Q2A_Function(nn.Module):
             video_seg = video_dynamic
             
             scores = []
-            state = None
+            state = self.state
             for i, actions_per_step in enumerate(actions):
                 a_texts, a_buttons = zip(*[(action['text'], action['button']) for action in actions_per_step])
                 a_texts = self.mlp_t(torch.cat(a_texts))
@@ -339,8 +344,6 @@ class Q2A_Function(nn.Module):
                 inputs = self.fac_att(inputs)
 
                 inputs = self.mlp_pre(inputs)
-                if state is None:
-                    state = self.state_map(inputs)
                 if hasattr(self, "gru"):
                     states = self.gru(inputs, state.expand_as(inputs))
                 else:
