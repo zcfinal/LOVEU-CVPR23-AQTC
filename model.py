@@ -224,7 +224,7 @@ class AdditiveAttention(nn.Module):
         return x
 
 class MOE(nn.Module):
-    def __init__(self, num_experts, emb_dim, input_dim, hidden_dim, output_dim):
+    def __init__(self, num_experts, emb_dim, input_dim, output_dim):
         super(MOE, self).__init__()
         self.class_para = nn.Parameter(torch.empty((4, emb_dim)))
         nn.init.normal_(self.class_para,std=0.1)
@@ -276,7 +276,7 @@ class Q2A_Function(nn.Module):
             self.proj = MLP(cfg.MODEL.DIM_STATE*2, 1)
         elif cfg.MODEL.HISTORY.ARCH == "gru":
             self.gru = nn.GRUCell(cfg.MODEL.DIM_STATE, cfg.MODEL.DIM_STATE)
-            self.proj = MOE(cfg.MODEL.MOE,64,cfg.MODEL.DIM_STATE,cfg.MODEL.DIM_STATE//2,1)
+            self.proj = MOE(cfg.MODEL.MOE,cfg.MODEL.DIM_STATE,cfg.MODEL.DIM_STATE,1)
         else:
             assert False, "unknown arch"
         
