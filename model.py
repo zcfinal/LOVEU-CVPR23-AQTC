@@ -229,13 +229,14 @@ class MOE(nn.Module):
         self.class_para = nn.Parameter(torch.empty((4, emb_dim)))
         nn.init.normal_(self.class_para,std=0.1)
         self.num_experts = num_experts
-        self.expert_nets = nn.ModuleList([nn.Linear(input_dim, output_dim) for _ in range(num_experts)])
-        self.gate = Gate(emb_dim)
-        self.trans = nn.Linear(input_dim,emb_dim)
+        self.expert_nets = nn.ModuleList([nn.Linear(input_dim, hidden_dim) for _ in range(num_experts)])
+        # self.gate = Gate(emb_dim)
+        # self.trans = nn.Linear(input_dim,emb_dim)
         self.gate_net = nn.Sequential(
             nn.Linear(emb_dim, emb_dim//2),
             nn.ReLU(),
             nn.Linear(emb_dim//2,self.num_experts))
+        self.output_net = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, step_i):
         expert_outputs = [expert_net(x) for expert_net in self.expert_nets]
@@ -243,12 +244,13 @@ class MOE(nn.Module):
         emb_idx = self.get_emb_idx(step_i)
         class_emb = self.class_para[emb_idx]
         class_emb = class_emb.unsqueeze(0).repeat(expert_outputs.shape[0],1)
-        trans_feature = self.trans(x)
-        class_emb = self.gate(class_emb,trans_feature)
+        # trans_feature = self.trans(x)
+        # class_emb = self.gate(class_emb,trans_feature)
         gate_logits = self.gate_net(class_emb)
         gate_probs = torch.softmax(gate_logits, dim=1)
         weighted_expert_outputs = torch.bmm(gate_probs.unsqueeze(1), expert_outputs).squeeze(1)
-        return weighted_expert_outputs
+        output = self.output_net(weighted_expert_outputs)
+        return output
     
     def get_emb_idx(self,x):
         if x>=4:
