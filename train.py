@@ -8,8 +8,8 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, Ea
 from pytorch_lightning.loggers import WandbLogger
 
 if __name__ == "__main__":
-    seed_everything(0, workers=True)
     cfg, args = build_config()
+    seed_everything(args.seed, workers=True)
     dataset = build_data(cfg)
     model = build_model(cfg)
     checkpoint_callback = ModelCheckpoint(

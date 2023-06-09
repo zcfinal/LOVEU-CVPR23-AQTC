@@ -55,11 +55,15 @@ class EncodedAssistQADataModule(LightningDataModule):
                 s["script"] = os.path.join(root, t, cfg.INPUT.SCRIPT)
                 s["para"] = os.path.join(root, t, cfg.INPUT.PARA)
             random.shuffle(sample)
-            split_num = int(len(sample)*self.cfg.DATASET.SPLIT_RATIO)
-            train_samples.extend(sample[:split_num])
-            valid_samples.extend(sample[split_num:])
+            if len(sample)>4:
+                split_num = int(len(sample)*self.cfg.DATASET.SPLIT_RATIO)
+                train_samples.extend(sample[:split_num])
+                valid_samples.extend(sample[split_num:])
+            else:
+                train_samples.extend(sample)
         self.train_samples = train_samples
         self.valid_samples = valid_samples
+
         pseudo_samples = copy.deepcopy(self.valid_samples)
         for t in os.listdir(root):
             sample = torch.load(os.path.join(root, t, cfg.INPUT.QATEST), map_location="cpu")

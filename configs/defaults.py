@@ -43,6 +43,11 @@ def parse_args():
         type=str2bool,
         default=True
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0
+    )
     if len(sys.argv) == 1:
         parser.print_help()
     return parser.parse_args()
