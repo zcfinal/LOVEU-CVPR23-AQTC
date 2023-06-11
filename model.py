@@ -3,6 +3,7 @@ from torch import nn
 from torch.functional import F
 from pytorch_lightning import LightningModule
 import random
+from beam import Beam
 
 
 class MLP(nn.Module):
@@ -248,6 +249,11 @@ class Q2A_Function(nn.Module):
         else:
             assert False, "unknown arch"
         
+        self.inference = cfg.INFERENCE
+        self.beam = cfg.BEAM
+        self.original_beam_size = cfg.BEAM_SIZE
+        self.beam_size = cfg.BEAM_SIZE
+        
         self.history_train = cfg.MODEL.HISTORY.TRAIN
         self.history_val = cfg.MODEL.HISTORY.VAL
         
@@ -289,7 +295,14 @@ class Q2A_Function(nn.Module):
 
             video_seg = video_dynamic
             
-            state = self.state
+            if self.inference and self.beam:
+                min_size = min([len(act) for act in actions])
+                self.beam_size = min(self.original_beam_size,min_size)
+                beams = Beam(self.beam_size, True)
+                prob_proj = nn.LogSoftmax(dim=-1)
+                state = self.state.repeat(self.beam_size,1)
+            else:
+                state = self.state
             scores = []
             for i, actions_per_step in enumerate(actions):
                 a_texts, a_buttons = zip(*[(action['text'], action['button']) for action in actions_per_step])
@@ -310,11 +323,28 @@ class Q2A_Function(nn.Module):
                 inputs = self.fac_att(inputs)
 
                 inputs = self.mlp_pre(inputs)
+
+                if self.inference and self.beam:
+                    # [beam_size, seq_len] - > [beam_size ]
+                    current_state = beams.get_current_state()[:,-1]
+                    # [beam size, dim]
+                    current_state_emb = state[current_state]
+                    # [candi, dim]- > [beam_size*candi, dim ]
+                    inputs = inputs.repeat(self.beam_size,1,1).view(self.beam_size*A,-1)
+                    current_state_emb = current_state_emb.repeat(1,A,1).view(self.beam_size*A,-1)
+                    state = current_state_emb
+
+
                 if hasattr(self, "gru"):
                     states = self.gru(inputs, state.expand_as(inputs))
                 else:
                     states = torch.cat([inputs, state.expand_as(inputs)], dim=1)
                 logits = self.proj(states)
+
+                if self.inference and self.beam:
+                    prob = prob_proj(logits.view(self.beam_size,A))
+                    beams.advance(prob,logits.view(self.beam_size,A))
+
                 if self.training and not p:
                     loss += F.cross_entropy(logits.view(1, -1), label[i].view(-1))
                     count += 1
@@ -328,11 +358,23 @@ class Q2A_Function(nn.Module):
                         break
                 else:
                     scores.append(logits.view(-1).tolist())
+                
+                if self.inference and self.beam:
+                    state = states
+                    continue
+
+
                 if self.history_train == "gt" and self.training and not p and TeachForce:
-                    state = inputs[label[i]]
+                    state = states[label[i]]
                 elif (self.history_train == "max" and self.training) \
                     or (self.history_val == "max" and not self.training) or p or not TeachForce:
-                    state = inputs[logits.argmax()]
+                    state = states[logits.argmax()]
+            
+            if self.inference and self.beam:
+                hyps,logits = beams.get_hypothesis(0)
+                logit = [l.detach().cpu().tolist() for l in logits]
+                scores = logit
+
             if not self.training:
                 meta["scores"] = scores
                 result = {}
