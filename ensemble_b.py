@@ -9,21 +9,15 @@ def softmax(x):
 
 fileroot = '/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/outputs/cvpr_loveu2023/'
 
-exp_names = [
-    'SSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'SSL_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'noconfibreak_S3Dvideo_addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'S3Dvideo_addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'addtestSSL0.9_layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'splitqa_lr1e-4_bs16_epoch100',
-    'layernorm_kaiming_statepara_timeemb_lr1e-4_bs16_epoch100',
-    'layernorm_kaiming_statepara_lr1e-4_bs16_epoch100',
-    'layernorm_kaiming_splitmlp_lr1e-4_bs16_epoch100',
-    'layernorm_kaiming_sentence_lr1e-4_bs16_epoch100',
-    'layernorm_kaiming_lr1e-4_bs16_epoch100',
-    'agglearn_lr1e-4_bs16_epoch100',
-    'baseline_lr1e-4_bs16_epoch100'
-]
+exp_names = []
+
+seeds=[0, 42, 240]
+dims=[32, 64, 128, 256, 512, 1024, 2048]
+
+for seed in seeds:
+    for dim in dims:
+        exp_names.append(f'more_train_l4_stateinput_{dim}_seed_{seed}')
+
 
 file_num = len(exp_names)
 result = None

@@ -1,6 +1,7 @@
 from data import build_data
 from model import build_model
 from configs import build_config
+import os
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.strategies import DDPStrategy
@@ -29,5 +30,8 @@ if __name__ == "__main__":
         num_sanity_val_steps=0,
         logger=logger
     )
+    files = list(os.listdir(cfg.CKPT))
+    if len(files)==1:
+        cfg.CKPT = cfg.CKPT + files[0]
     trainer.validate(model, datamodule=dataset, 
         ckpt_path=cfg.CKPT if hasattr(cfg, "CKPT") else None)
