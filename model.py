@@ -229,12 +229,17 @@ class Q2A_Function(nn.Module):
         super().__init__()
         self.mlp_v = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
         self.mlp_t = MLP(cfg.INPUT.DIM, cfg.INPUT.DIM)
-        self.mlp_pre = MLP(cfg.INPUT.DIM, cfg.MODEL.DIM_STATE)
 
         self.button_gate = Gate(cfg.INPUT.DIM)
-        self.text_attn = Attention(cfg.INPUT.DIM)
-        self.attn = Attention(cfg.INPUT.DIM)
-        self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
+        if cfg.MODEL.TEXTGROUNDING!='hard':
+            self.text_attn = Attention(cfg.INPUT.DIM)
+        if cfg.MODEL.VIDEOGROUNDING!='hard':
+            self.attn = Attention(cfg.INPUT.DIM)
+        if cfg.MODEL.REWEIGHT:
+            self.fac_att = AdditiveAttention(cfg.INPUT.DIM,cfg.INPUT.DIM//2)
+            self.mlp_pre = MLP(cfg.INPUT.DIM, cfg.MODEL.DIM_STATE)
+        else:
+            self.mlp_pre = MLP(cfg.INPUT.DIM*4, cfg.MODEL.DIM_STATE)
 
         if cfg.MODEL.TIMEEMB:
             self.timeemb = nn.Parameter(torch.randn((50,cfg.MODEL.DIM_STATE), device="cuda"))
@@ -264,7 +269,12 @@ class Q2A_Function(nn.Module):
         loss, count = 0, 0
         results = []
         for video, script, question, para, actions, label, meta in batch:
-            TeachForce = True if random.uniform(0,1)<max(0,1-0.05*epoch) else False
+            if self.cfg.MODEL.TeacherForce=='lineardecay':
+                TeachForce = True if random.uniform(0,1)<max(0,1-0.05*epoch) else False
+            elif self.cfg.MODEL.TeacherForce=='autoregression':
+                TeachForce = False
+            elif self.cfg.MODEL.TeacherForce=='teacherforcing':
+                TeachForce = True
             # for text
             question = self.mlp_t(question)
             if self.function_centric:
@@ -273,9 +283,14 @@ class Q2A_Function(nn.Module):
                 para = self.mlp_t(para)
                 if self.cfg.MODEL.TIMEEMB:
                     para = para + self.timeemb[:para.shape[0],:]
-                para_learn = self.text_attn(question,para.unsqueeze(0)).view(-1)
-                para = torch.matmul(score, para)
-                para = (para+para_learn)/2
+                if self.cfg.MODEL.TEXTGROUNDING=='combine':
+                    para_learn = self.text_attn(question,para.unsqueeze(0)).view(-1)
+                    para = torch.matmul(score, para)
+                    para = (para+para_learn)/2
+                elif self.cfg.MODEL.TEXTGROUNDING=='hard':
+                    para = torch.matmul(score, para)
+                elif self.cfg.MODEL.TEXTGROUNDING=='soft':
+                    para = self.text_attn(question,para.unsqueeze(0)).view(-1)
             else:
                 score = torch.tensor(meta['sents_score']).softmax(dim=0).cuda()
                 timestamps = meta['sents_timestamp']
@@ -291,9 +306,24 @@ class Q2A_Function(nn.Module):
                 video = video + self.timeemb[:video.shape[0],:]
             # video_seg = torch.matmul(score, video)
 
-            video_dynamic = self.attn(question,video.unsqueeze(0))
+            if 'paras' not in self.cfg.INPUT.VIDEO:
+                video_seg = []
+                for seg in timestamps:
+                    if seg[0] >= seg[1]:
+                        video_seg.append(video[seg[0]])
+                    else:
+                        video_seg.append(video[seg[0]:seg[1]].mean(dim=0))
+                video = torch.stack(video_seg)
 
-            video_seg = video_dynamic
+            if self.cfg.MODEL.VIDEOGROUNDING=='combine':
+                video_dynamic = self.attn(question,video.unsqueeze(0))
+                video_hard = torch.matmul(score, video)
+                video_emb = (video_hard+video_dynamic)/2
+            elif self.cfg.MODEL.VIDEOGROUNDING=='hard':
+                video_emb = torch.matmul(score, video)
+            elif self.cfg.MODEL.VIDEOGROUNDING=='soft':
+                video_emb = self.attn(question,video.unsqueeze(0))
+
             
             if self.inference and self.beam:
                 min_size = min([len(act) for act in actions])
@@ -316,11 +346,17 @@ class Q2A_Function(nn.Module):
 
                 a_buttons = self.button_gate(a_buttons,a_texts)
 
-                inputs = torch.stack(
-                    [video_seg.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
-                    dim=1
-                )
-                inputs = self.fac_att(inputs)
+                if self.cfg.MODEL.REWEIGHT:
+                    inputs = torch.stack(
+                        [video_emb.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
+                        dim=1
+                    )
+                    inputs = self.fac_att(inputs)
+                else:
+                    inputs = torch.cat(
+                        [video_emb.expand_as(qa), text_seg.expand_as(qa), qa.view(A, -1), a_buttons.view(A, -1)],
+                        dim=1
+                    )
 
                 inputs = self.mlp_pre(inputs)
 
@@ -403,10 +439,13 @@ class ModelModule(LightningModule):
         dataset = self.trainer.datamodule.__class__.__name__
         self.log(f"{dataset} loss", loss, rank_zero_only=True)
 
-        p_loss = self.model(unlabeled_data,self.current_epoch+1,p=True)
-        self.log(f"{dataset} pseudo loss", p_loss, rank_zero_only=True)
-        sum_loss = loss+p_loss
-        return sum_loss
+        if self.cfg.SSL:
+            p_loss = self.model(unlabeled_data,self.current_epoch+1,p=True)
+            self.log(f"{dataset} pseudo loss", p_loss, rank_zero_only=True)
+            sum_loss = loss+p_loss
+            return sum_loss
+        else:
+            return loss
     
     def configure_optimizers(self):
         cfg = self.cfg

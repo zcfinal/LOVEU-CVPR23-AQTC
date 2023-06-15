@@ -16,6 +16,10 @@ INPUT:
   S3DDIM: 512
   NUM_MASKS: 1
 MODEL:
+  TEXTGROUNDING: 'combine' #combine,hard,soft
+  VIDEOGROUNDING: 'soft'
+  REWEIGHT: True
+  TeacherForce: 'lineardecay' #'lineardecay'\'autoregression'\'teacherforcing'
   TIMEEMB: False
   ARCH: 'q2a_function'
   DIM_STATE: 768
@@ -37,3 +41,4 @@ SAVEPATH: ''
 INFERENCE: True
 BEAM: False
 BEAM_SIZE: 1
+SSL: True
