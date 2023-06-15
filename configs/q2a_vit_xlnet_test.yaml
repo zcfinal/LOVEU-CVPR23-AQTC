@@ -1,6 +1,6 @@
 DATASET: 
   TRAIN: 'encoder/outputs/vit_xlnet/video'
-  VIDEO: 'pretrain/outputs/S3D/video'
+  VIDEO: 'encoder/outputs/vit_xlnet/video'
   SPLIT_RATIO: 0.95
   VAL: 'encoder/outputs/vit_xlnet/test'
   GT: ''
@@ -16,6 +16,10 @@ INPUT:
   S3DDIM: 512
   NUM_MASKS: 1
 MODEL:
+  TEXTGROUNDING: 'hard' #combine,hard,soft
+  VIDEOGROUNDING: 'hard'
+  REWEIGHT: False
+  TeacherForce: 'teacherforcing' #'lineardecay'\'autoregression'\'teacherforcing'
   TIMEEMB: False
   ARCH: 'q2a_function'
   DIM_STATE: 768
@@ -33,3 +37,7 @@ CHECK_VAL_EVERY_N_EPOCH: 1
 NUM_GPUS: 1
 CKPT: ''
 SAVEPATH: ''
+INFERENCE: False
+BEAM: False
+BEAM_SIZE: 1
+SSL: False

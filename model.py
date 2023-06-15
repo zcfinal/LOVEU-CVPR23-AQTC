@@ -53,7 +53,7 @@ class Q2A(nn.Module):
         self.function_centric = cfg.MODEL.FUNCTION_CENTRIC
         self.cfg = cfg
 
-    def forward(self, batch):
+    def forward(self, batch, epoch=0):
         loss, count = 0, 0
         results = []
         for video, script, question, para, actions, label, meta in batch:
@@ -127,13 +127,17 @@ class Q2A(nn.Module):
                 else:
                     scores.append(logits.view(-1).tolist())
                 if self.history_train == "gt" and self.training:
-                    state = inputs[label[i]]
+                    state = states[label[i]]
                 if (self.history_train == "max" and self.training) \
                     or (self.history_val == "max" and not self.training):
-                    state = inputs[logits.argmax()]
+                    state = states[logits.argmax()]
             if not self.training:
                 meta["scores"] = scores
-                results.append(meta)
+                result = {}
+                result['meta'] = meta
+                if self.cfg.DATASET.GT:
+                    result['label'] = label
+                results.append(result)
         if self.training:
             return loss / count
         else:
