@@ -1,5 +1,5 @@
 cd ..
-seeds=(3 4)
+seeds=(7 8)
 dims=(32 64 128 256 512 1024 2048)
 
 for seed in ${seeds[@]}
@@ -8,7 +8,7 @@ for dim in ${dims[@]}
 do
 projname=more_train_l4_stateinput_${dim}_seed_${seed}
 
-CUDA_VISIBLE_DEVICES=2 python train.py \
+CUDA_VISIBLE_DEVICES=4 python train.py \
  --wdb_project cvpr_loveu2023 \
  --wdb_name ${projname} \
  --wdb_offline False \

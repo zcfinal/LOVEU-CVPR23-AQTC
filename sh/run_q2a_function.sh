@@ -1,8 +1,15 @@
 cd ..
 projname=q2a_function
 
-CUDA_VISIBLE_DEVICES=2 python train.py \
+# CUDA_VISIBLE_DEVICES=2 python train.py \
+#  --wdb_project cvpr_loveu2023 \
+#  --wdb_name ${projname} \
+#  --wdb_offline False \
+#  --cfg configs/q2a_vit_xlnet.yaml 
+
+
+CUDA_VISIBLE_DEVICES=2 python inference.py \
  --wdb_project cvpr_loveu2023 \
  --wdb_name ${projname} \
- --wdb_offline False \
- --cfg configs/q2a_vit_xlnet.yaml 
+ --wdb_offline True \
+ --cfg configs/q2a_vit_xlnet_test.yaml CKPT "/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/outputs/cvpr_loveu2023/q2a_function/"

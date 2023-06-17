@@ -1,5 +1,5 @@
 cd ..
-seeds=(77 99 120 400)
+seeds=(1 2)
 dims=(32 64 128 256 512 1024 2048)
 
 for seed in ${seeds[@]}

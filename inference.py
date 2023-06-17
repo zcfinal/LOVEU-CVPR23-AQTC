@@ -11,6 +11,11 @@ from pytorch_lightning.loggers import WandbLogger
 if __name__ == "__main__":
     seed_everything(0, workers=True)
     cfg, args = build_config()
+    files = list(os.listdir(cfg.CKPT))
+    if len(files)==1:
+        cfg.CKPT = cfg.CKPT + files[0]
+    else:
+        exit()
     dataset = build_data(cfg)
     model = build_model(cfg)
     logger = WandbLogger(project=args.wdb_project,name=args.wdb_name,log_model=False,save_dir='outputs/',offline=True)
@@ -30,8 +35,5 @@ if __name__ == "__main__":
         num_sanity_val_steps=0,
         logger=logger
     )
-    files = list(os.listdir(cfg.CKPT))
-    if len(files)==1:
-        cfg.CKPT = cfg.CKPT + files[0]
     trainer.validate(model, datamodule=dataset, 
         ckpt_path=cfg.CKPT if hasattr(cfg, "CKPT") else None)

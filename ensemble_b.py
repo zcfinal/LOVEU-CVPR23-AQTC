@@ -11,14 +11,14 @@ fileroot = '/data/zclfe/cvpr_comp/LOVEU-CVPR22-AQTC/outputs/cvpr_loveu2023/'
 
 exp_names = []
 
-seeds=[0, 42, 240]
-dims=[32, 64, 128, 256, 512, 1024, 2048]
+seeds=[0,1,2,3,4,5,6,7,8, 42, 240,789,1024,2048,5555,77,99,120,400] # [0 1 2 3 4 5 6 7 8 42 240 789 1024 2048 5555 77 99 120 400]
+dims=[256, 512,768, 1024,1536, 2048]
 
 for seed in seeds:
     for dim in dims:
         exp_names.append(f'more_train_l4_stateinput_{dim}_seed_{seed}')
 
-
+print(len(exp_names))
 file_num = len(exp_names)
 result = None
 

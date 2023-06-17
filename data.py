@@ -22,7 +22,7 @@ class EncodedAssistQA(Dataset):
         paras_timestamp, function_para = timestamp_para
 
         question = sample["question"]
-        actions = sample["answers"]
+        actions = sample["answers"] 
         meta = {
             'question': sample['src_question'], 'folder': sample['folder'], 
             'paras_score': sample['paras_score'], 'paras_timestamp': paras_timestamp, 
