@@ -1,18 +1,19 @@
-## Winning the CVPR'22 LOVEU-AQTC challenge 
+## A solution to the CVPR'23 LOVEU-AQTC challenge 
 
-### A Two-stage Function-centric Approach
+### Video Alignment for Multi-step Inference
 
-This repo provides the **1st place** solution(code and checkpoint) of the CVPR'22 LOVEU-AQTC challenge.
+This repo provides the **2nd place** solution of the CVPR'23 LOVEU-AQTC challenge.
 
-[[Challenge Page]](https://showlab.github.io/assistq/)  [[Challenge Paper]](https://arxiv.org/abs/2203.04203)  [[Our paper]](https://arxiv.org/abs/2206.09597) [[LOVEU@CVPR'22 Challenge]](https://sites.google.com/view/loveucvpr22/track-3?authuser=0) [[CodaLab Leaderboard]](https://codalab.lisn.upsaclay.fr/competitions/4642#results)
+![image](https://github.com/zcfinal/LOVEU-CVPR23-AQTC/assets/48513057/33a66e28-cec1-46de-9b64-430eccda5c36)
+
+
+[[Challenge Page]](https://showlab.github.io/assistq/)  [[Challenge Paper]](https://arxiv.org/abs/2203.04203) [[LOVEU@CVPR'23 Challenge]](https://sites.google.com/view/loveucvpr23/track3?authuser=0) [[CodaLab Leaderboard]](https://codalab.lisn.upsaclay.fr/competitions/4642#results)
 
 Click to know the task:
 
 [![Click to see the demo](https://img.youtube.com/vi/3v8ceel9Mos/0.jpg)](https://www.youtube.com/watch?v=3v8ceel9Mos)
 
-Model Architecture (see [[Our Paper]](https://arxiv.org/abs/2206.09597) for details):
 
-![image-20220619201014430](https://raw.githubusercontent.com/starsholic/pic/main/image-20220619201014430.png)
 
 
 ## Install
@@ -29,6 +30,9 @@ conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch
 pip install pytorch-lightning
 ```
 
+(3) [VideoCLIP install](https://github.com/facebookresearch/fairseq/tree/main/examples/MMPT)
+
+
 ## Data
 
 Download training set and testing set (without ground-truth labels) by filling in the [[AssistQ Downloading Agreement]](https://forms.gle/h9A8GxHksWJfPByf7).
@@ -37,41 +41,14 @@ Then carefully set your data path in the config file ;)
 
 ## Encoding
 
-Before starting, you should encode the instructional videos, scripts, function-paras, QAs. See [encoder.md](https://github.com/starsholic/LOVEU-CVPR22-AQTC/tree/main/encoder).
+We utilize pretrained [S3D](https://github.com/antoine77340/S3D_HowTo100M) and [VideoCLIP](https://github.com/facebookresearch/fairseq/tree/main/examples/MMPT) to encode the videos and scripts.
+
+/pretrain/feature.sh is the script to conduct encoding.
 
 ## Training & Evaluation
 
-Select the config file and simply train, e.g.,
+/sh/search_dim.sh is the training script.
 
-```
-CUDA_VISIBLE_DEVICES=0 python train.py --cfg configs/q2a_vit_xlnet.yaml
-```
+/sh/search_inf.sh is the inference script.
 
-To inference a model, e.g.,
-
-```
-CUDA_VISIBLE_DEVICES=0 python inference.py --cfg configs/q2a_vit_xlnet.yaml CKPT "outputs/q2a_vit_xlnet/lightning_logs/version_0/checkpoints/epoch=5-step=155.ckpt"
-```
-
-The evaluation will be performed after each epoch. You can use Tensorboard, or just terminal outputs to record evaluation results.
-
-To inference out best model, please download the checkpoint [here](https://drive.google.com/file/d/1nfgQLFE3ehiPeazSCMLavlUsAxoykH6C/view?usp=sharing), then
-
-```
-CUDA_VISIBLE_DEVICES=0 python inference.py --cfg configs/q2a_vit_xlnet.yaml CKPT "epoch=91-step=2392.ckpt"
-```
-
-## Function-centric Approach Performance for LOVEU@CVPR2022 Challenge: 80 videos' QA samples for training, 20 videos' QA samples for testing
-
-![image-20220619193605180](https://raw.githubusercontent.com/starsholic/pic/main/image-20220619193605180.png)
-
-We obtained better results after the competition deadline as shown below.
-
-| Model                                                        | Recall@1 ↑  | Recall@3 ↑  | MR (Mean Rank) ↓ | MRR (Mean Reciprocal Rank) ↑ |
-| ------------------------------------------------------------ | ----------- | ----------- | ---------------- | ---------------------------- |
-| Q2A(baseline) ([configs/q2a_gru+fps1+maskx-1_vit_b16+bert_b.yaml](https://github.com/showlab/Q2A/blob/master/configs/q2a_gru+fps1+maskx-1_vit_b16+bert_b.yaml)) | 30.2        | 62.4        | 3.2              | 3.2                          |
-| Function-centric ([configs/q2a_vit_xlnet.yaml](configs/q2a_vit_xlnet.yaml)) | 45.2(+15.0) | 75.4(+13.0) | 2.60(+0.60)        | 3.87(+0.67)                    |
-
-## Contact
-
-Feel free to contact us if you have any problems: dwustc@mail.ustc.edu.cn, or leave an issue in this repo.
+ensemble_b.py and ensemble.py are the file to ensemble results.
