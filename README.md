@@ -35,7 +35,7 @@ pip install pytorch-lightning
 
 ## Data
 
-Download training set and testing set (without ground-truth labels) by filling in the [[AssistQ Downloading Agreement]](https://forms.gle/h9A8GxHksWJfPByf7).
+Download training set and testing set (without ground-truth labels) of CVPR'22 LOVEU-AQTC challenge by filling in the [[AssistQ Downloading Agreement]](https://forms.gle/h9A8GxHksWJfPByf7).
 
 Then carefully set your data path in the config file ;)
 
