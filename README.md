@@ -41,6 +41,8 @@ Then carefully set your data path in the config file ;)
 
 ## Encoding
 
+For segmenting videos based on functions, see /encoder for further details.
+
 We utilize pretrained [S3D](https://github.com/antoine77340/S3D_HowTo100M) and [VideoCLIP](https://github.com/facebookresearch/fairseq/tree/main/examples/MMPT) to encode the videos and scripts.
 
 /pretrain/feature.sh is the script to conduct encoding.
