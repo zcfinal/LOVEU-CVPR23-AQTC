@@ -32,6 +32,8 @@ pip install pytorch-lightning
 
 (3) [VideoCLIP install](https://github.com/facebookresearch/fairseq/tree/main/examples/MMPT)
 
+Please replace the package file fairseq/examples/MMPT/mmpt/models/mmfusion.py with /pretrain/mmfusion.py.
+
 
 ## Data
 
