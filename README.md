@@ -7,7 +7,7 @@ This repo provides the **2nd place** solution of the CVPR'23 LOVEU-AQTC challeng
 ![image](https://github.com/zcfinal/LOVEU-CVPR23-AQTC/assets/48513057/33a66e28-cec1-46de-9b64-430eccda5c36)
 
 
-[[Challenge Page]](https://showlab.github.io/assistq/)  [[Challenge Paper]](https://arxiv.org/abs/2203.04203) [[LOVEU@CVPR'23 Challenge]](https://sites.google.com/view/loveucvpr23/track3?authuser=0) [[CodaLab Leaderboard]](https://codalab.lisn.upsaclay.fr/competitions/4642#results)
+[[Challenge Page]](https://showlab.github.io/assistq/)  [[Challenge Paper]](https://arxiv.org/abs/2203.04203) [[LOVEU@CVPR'23 Challenge]](https://sites.google.com/view/loveucvpr23/track3?authuser=0) [[CodaLab Leaderboard]](https://codalab.lisn.upsaclay.fr/competitions/4642#results) [[Technical Report]](https://arxiv.org/abs/2306.14412)
 
 Click to know the task:
 
